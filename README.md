@@ -436,7 +436,7 @@ Everything the reviewer needs is in one place and is populated entirely from rea
 
 ## Debug controls
 
-Available in debug builds through the backend debug endpoints and the in-app debug console, which is reached by long-pressing the tier chip on the market screen. A release build leaves it out unless it is built with `--dart-define=PULSETRADE_DEBUG_CONSOLE=true`, which is the flag to use when the APK being demonstrated has to be a release build.
+Available in debug builds through the backend debug endpoints and the in-app debug console, which is reached by long-pressing the tier chip on the market screen. A release build does not register it unless it is built with `--dart-define=PULSETRADE_DEBUG_CONSOLE=true`, which is the flag to use when the APK being demonstrated has to be a release build. The flag gates registration, not compilation: the console stays in the binary either way.
 
 | Control | Endpoint / message | What it demonstrates |
 |---|---|---|
@@ -548,7 +548,7 @@ flutter build apk --debug
 
 Point a build at a backend on your own machine instead with `--dart-define=PULSETRADE_GATEWAY=http://<host>:8080`. `https` is upgraded to `wss` automatically, so the deployment needs no client change beyond the address.
 
-The long-press that opens the debug console — and with it the forced tier change — exists in debug builds. A release build keeps it when built with the flag, which is how the APK attached to a submission can be a release build and still demonstrate all three tiers:
+The long-press that opens the debug console — and with it the forced tier change — is registered in debug builds. A release build registers it when built with the flag, which is how the APK attached to a submission can be a release build and still demonstrate all three tiers:
 
 ```bash
 flutter build apk --release --dart-define=PULSETRADE_DEBUG_CONSOLE=true

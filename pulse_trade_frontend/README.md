@@ -60,7 +60,8 @@ set of numbers.
   debug console are full-screen routes. The console is a build flag
   (`lib/app/build_flags.dart`): debug builds have it, and a release build keeps it
   with `--dart-define=PULSETRADE_DEBUG_CONSOLE=true`, so the APK that demonstrates a
-  forced tier change can be a release build. Its entry points follow the same flag —
+  forced tier change can be a release build. It gates registration rather than
+  compilation: the screen is in the binary either way, only its entry points differ. Its entry points follow the same flag —
   long-pressing the tier chip on the market screen, and the button on Diagnostics.
 - Deep links are routed by the app itself, in two shapes that mean the same thing:
   `pulsetrade://market/BTCUSDT` (the custom scheme, which `adb` and a browser
