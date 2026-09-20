@@ -255,9 +255,12 @@ final class OrderBookBloc extends Bloc<OrderBookEvent, OrderBookStateModel> {
     final OrderBookState syncState = _synchronizer.state;
     final int applied = _synchronizer.appliedUpdateId;
 
-    // A cached image may seed an empty book but must never rewind a book that
-    // already holds live data.
-    if (event.fromCache && syncState == OrderBookState.live) {
+    // A cached image may seed an empty book but must never rewind a book that already
+    // holds live data, and it must never answer a recovery: a recovery is only asked for
+    // because the book is known to be discontinuous, so an image from the cache would
+    // reinstate exactly the levels the missed range removed.
+    if (event.fromCache &&
+        (syncState == OrderBookState.live || _recoveryPending)) {
       AppLogger.debug(
         'order_book_cached_snapshot_dropped',
         fields: _fields(<String, Object?>{LogFields.updateId: applied}),

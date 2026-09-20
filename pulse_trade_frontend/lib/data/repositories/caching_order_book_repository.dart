@@ -59,7 +59,12 @@ final class CachingOrderBookRepository implements OrderBookRepository {
         Sourced<OrderBookSnapshot>.live(snapshot, asOf: now),
       );
     } on AppFailure catch (failure) {
-      if (entry != null && _isTransportFailure(failure)) {
+      // A forced refresh exists because the cached entry is the thing being doubted —
+      // the order book asks for one when a delta range proved the book discontinuous.
+      // Answering that with the very entry under suspicion installs a stale image as
+      // the repaired book, and the deltas that follow move one side of it away from the
+      // other, which is how a crossed book appears. Fresh or fail.
+      if (entry != null && _isTransportFailure(failure) && !forceRefresh) {
         return Ok<Sourced<OrderBookSnapshot>>(
           Sourced<OrderBookSnapshot>.fromCache(
             entry.payload,
