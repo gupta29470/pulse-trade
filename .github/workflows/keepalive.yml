@@ -1,0 +1,42 @@
+# Keeps the optional free Render instance from spinning down.
+#
+# Render sleeps a free service after ~15 minutes without inbound traffic, so one
+# request every 5 minutes keeps it warm. That is the only job this workflow has:
+# it does not build or test anything, and the build and test commands stay local.
+#
+# Set the URL once, as a repository variable (Settings > Secrets and variables >
+# Actions > Variables > New repository variable):
+#
+#   PULSETRADE_URL = https://your-service.onrender.com
+#
+# Until that variable exists the job does nothing and exits successfully, so this
+# can be merged before the service is deployed.
+name: keep-alive
+
+on:
+  schedule:
+    # GitHub's shortest interval. Expect delays under load: this is a fallback for
+    # an external uptime monitor, not a substitute for one.
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping /health
+        env:
+          BASE_URL: ${{ vars.PULSETRADE_URL }}
+        run: |
+          if [ -z "$BASE_URL" ]; then
+            echo "PULSETRADE_URL is not set yet; nothing to ping."
+            exit 0
+          fi
+          # A sleeping free instance needs time to boot, so the timeout is generous.
+          # The status is reported but never fails the run: a keep-alive that mails
+          # on every blip is worse than no keep-alive.
+          status=$(curl -s -o /dev/null -m 90 -w '%{http_code}' "$BASE_URL/health" || echo 000)
+          echo "GET $BASE_URL/health -> $status"

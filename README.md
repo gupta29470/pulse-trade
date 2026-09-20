@@ -35,6 +35,7 @@ Synthetic market generator  →  Canonical market engine  →  Per-connection ad
 - [Testing](#testing)
 - [Packages](#packages)
 - [Repository layout](#repository-layout)
+- [Deployment (optional)](#deployment-optional)
 - [Known limitations](#known-limitations)
 
 ---
@@ -71,7 +72,7 @@ flutter run
 
 The shipped default is the host's LAN address, so a **fresh install on a physical device connects with no configuration**. For an **emulator** build use `--dart-define=PULSETRADE_GATEWAY=http://10.0.2.2:8080`; to tunnel over USB instead, `adb reverse tcp:8080 tcp:8080` and use `http://localhost:8080` (re-run it after each reconnect — the rule is tied to the adb transport). `10.0.2.2` is the emulator's alias for the host loopback interface. Cleartext HTTP/WS is a **local development transport**; TLS termination is listed under known limitations.
 
-`make help` lists every convenience target. There is no CI/CD by design — see [Testing](#testing).
+`make help` lists every convenience target. Nothing is built or tested by a pipeline — the only workflow in the repository pings a deployed instance to keep it awake, which [Deployment](#deployment-optional) explains.
 
 ---
 
@@ -516,10 +517,33 @@ code change (`core/cache/cache_directory.dart` is the only boundary that touches
 pulse_trade/
 ├── README.md                     this file
 ├── Makefile                      convenience targets (not a pipeline)
+├── render.yaml                   the optional hosted deployment, as a blueprint
+├── .github/workflows/            the keep-alive ping for a free instance
 ├── pulse_trade_backend/          Go backend
 ├── pulse_trade_frontend/         Flutter app
 └── fixtures/                     the replay tape for deterministic demos
 ```
+
+---
+
+## Deployment (optional)
+
+Everything above runs locally, and that is all the exercise needs. A hosted instance is a convenience, so it is documented here rather than assumed.
+
+`render.yaml` records what a Render web service needs: the backend's directory within this monorepo, the build command, and the start command `HTTP_ADDR=0.0.0.0:$PORT ./app`. That last one is the setting that silently breaks a deploy if it is missed — the server reads `HTTP_ADDR`, not the `PORT` variable a host injects, so the injected port has to be passed in. There are no secrets to set: the feed is generated locally.
+
+Two properties of a free instance are worth knowing before relying on one:
+
+- **It sleeps** after roughly fifteen minutes without inbound traffic, and the next request pays the boot. `.github/workflows/keepalive.yml` pings `/health` every five minutes to prevent that; it stays inert until the repository variable `PULSETRADE_URL` names the service. Treat it as a fallback for an external uptime monitor rather than a substitute: a scheduled workflow can be delayed under load, and GitHub disables one after sixty days without repository activity. While the app is connected it keeps the service awake by itself, because its heartbeat and watchlist polling are inbound traffic.
+- **It is slower.** Warmup is budgeted at ten seconds for six markets and a free instance has a fraction of a core, so the server may start with a partly filled chart rather than waiting. `WARMUP_MAX_EVENTS` trades history depth for warmup time; on a larger instance the default is fine.
+
+The app has to be built against whichever gateway serves it, because the address is compiled in:
+
+```bash
+flutter build apk --debug --dart-define=PULSETRADE_GATEWAY=https://your-service.onrender.com
+```
+
+Keep that a **debug** build: a release build compiles out the debug console, and that console is how a forced tier change is demonstrated. `https` is upgraded to `wss` automatically, so the deployment needs no client change beyond the address.
 
 ---
 
@@ -544,7 +568,7 @@ doc comment at that seam states the reason.
 12. **Cache is unencrypted and evictable.** It holds only public market data and UI preferences; the 8 MB cap means older interval history can be evicted and refetched.
 13. **Offline data can be arbitrarily old.** The app shows the last known values with their true age and does not interpolate, estimate or fabricate movement.
 14. **iOS is not built.** The core, domain, data and presentation layers are platform-agnostic and only the `android/` platform folder is configured; an iOS build needs its own platform folder and cache directory implementation behind `core/cache/cache_directory.dart`.
-15. **No CI/CD by design.** Quality is enforced by the local commands above and by the mandatory test list — not by a pipeline.
+15. **No CI/CD by design.** Nothing is built, tested or deployed by a pipeline: quality is enforced by the local commands above and by the mandatory test list. The one scheduled workflow exists only to keep an optional deployed instance awake — see [Deployment](#deployment-optional).
 16. **The HTTP surface has no per-IP rate limit and no gzip.** The WebSocket path is limited (message rate, frame size, read limit), while the REST surface has neither a rate limiter nor compression, so no `429 RATE_LIMITED` is produced. Acceptable for a locally-run single-client backend on a trusted LAN; a public deployment needs both added at the transport seam.
 
 ---
