@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-only network policy.
+
+  A debug build is expected to point at whatever machine the developer is working
+  on, including a physical device hitting a LAN address that cannot be known in
+  advance, so cleartext is permitted for all hosts here. The release build keeps
+  the restrictive policy in src/main/res/xml/network_security_config.xml.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

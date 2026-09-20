@@ -1,0 +1,7 @@
+# OS and editor files. Each project folder ignores its own build output, caches
+# and local configuration; this covers the repository root.
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

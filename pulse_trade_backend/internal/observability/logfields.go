@@ -1,0 +1,148 @@
+// Package observability provides structured JSON logging, an in-process metric
+// registry, and the telemetry payload types that the engine and the delivery
+// layer hand to the metrics store. It holds no business logic.
+package observability
+
+// Log field names. Every log call site uses these constants so a field cannot be
+// misspelled, and so one file defines the vocabulary the log stream is read by.
+const (
+	FieldService       = "service"
+	FieldVersion       = "version"
+	FieldComponent     = "component"
+	FieldSessionID     = "sessionId"
+	FieldShortID       = "shortId"
+	FieldCorrelationID = "correlationId"
+	FieldEvent         = "event"
+	FieldSymbol        = "symbol"
+	FieldInterval      = "interval"
+	FieldUpdateID      = "updateId"
+	FieldTradeID       = "tradeId"
+	FieldSeq           = "seq"
+	FieldTier          = "tier"
+	FieldFromTier      = "fromTier"
+	FieldOverride      = "override"
+	FieldReason        = "reason"
+	FieldStreak        = "streak"
+	FieldRTTMs         = "rttMs"
+	FieldJitterMs      = "jitterMs"
+	FieldEffectiveRate = "effectiveRate"
+	FieldTargetRate    = "targetRate"
+	FieldDurationMs    = "durationMs"
+	FieldCount         = "count"
+	FieldDropped       = "dropped"
+	FieldCoalesced     = "coalesced"
+	FieldError         = "error"
+	FieldErrorCode     = "errorCode"
+	FieldFatal         = "fatal"
+	FieldAddr          = "addr"
+	FieldPath          = "path"
+	FieldMethod        = "method"
+	FieldStatus        = "status"
+	FieldBytes         = "bytes"
+	FieldSeed          = "seed"
+	FieldEpoch         = "epoch"
+	FieldEventIndex    = "eventIndex"
+	FieldDriver        = "driver"
+	FieldQueueDepth    = "queueDepth"
+	FieldRemoteAddr    = "remoteAddr"
+	FieldClientVersion = "clientVersion"
+	FieldPlatform      = "platform"
+	FieldDeviceID      = "deviceId"
+	FieldTierReason    = "tierReason"
+	FieldApplied       = "applied"
+	FieldBatchSize     = "batchSize"
+	FieldRows          = "rows"
+	FieldGapSize       = "gapSize"
+	FieldAttempt       = "attempt"
+	FieldForce         = "force"
+	FieldSchemaVersion = "schemaVersion"
+	FieldCapacity      = "capacity"
+	FieldWSPath        = "ws"
+	FieldTimedOut      = "timedOut"
+	FieldDebugBuild    = "debugBuild"
+	FieldDebugControls = "debugControls"
+	FieldMetricsDriver = "metricsDriver"
+	FieldUptime        = "uptime"
+	FieldKind          = "kind"
+	FieldOperation     = "operation"
+	FieldDetail        = "detail"
+	FieldChannels      = "channels"
+	FieldPrevInterval  = "previousInterval"
+)
+
+// Log message slugs. Structured logging means the message is a stable identifier
+// rather than a sentence with values interpolated into it; all variable data goes
+// into its own field.
+const (
+	MsgServerStarting    = "server_starting"
+	MsgListening         = "listening"
+	MsgShutdownStarted   = "shutdown_started"
+	MsgShutdownComplete  = "shutdown_complete"
+	MsgWarmupComplete    = "warmup_complete"
+	MsgMetricsStoreReady = "metrics_store_ready"
+	MsgMetricsDegraded   = "metrics_store_degraded"
+	MsgMetricsDropped    = "metrics_dropped"
+	MsgMetricsPruned     = "metrics_pruned"
+	MsgMetricsFlushSlow  = "metrics_flush_slow"
+	MsgConfigLoaded      = "config_loaded"
+
+	MsgWSConnected    = "ws_connected"
+	MsgWSDisconnected = "ws_disconnected"
+	MsgWSSubscribe    = "ws_subscribe"
+	MsgWSDropped      = "ws_message_dropped"
+	MsgWSCriticalDrop = "ws_critical_message_dropped"
+	MsgWSSlowConsumer = "ws_slow_consumer"
+	MsgWSRateLimited  = "ws_rate_limited"
+
+	MsgTierTransition  = "tier_transition"
+	MsgHealthReport    = "health_report"
+	MsgHealthWatchdog  = "health_watchdog"
+	MsgBookRecovery    = "book_recovery"
+	MsgBookGapDetected = "book_gap_detected"
+	MsgBookResync      = "book_resync"
+
+	MsgProtocolError    = "protocol_error"
+	MsgMalformedFrame   = "malformed_frame"
+	MsgUnknownType      = "unknown_message_type"
+	MsgValidationFailed = "validation_failed"
+
+	MsgEngineEvent        = "engine_event"
+	MsgInvariantViolation = "invariant_violation"
+	MsgCandleClosed       = "candle_closed"
+	MsgFaultInjected      = "fault_injected"
+
+	MsgDebugControl = "debug_control"
+	MsgCacheWrite   = "cache_write_failed"
+
+	// Process and transport lifecycle, complementing MsgServerStarting: startup and
+	// shutdown have to be reconstructable from the log alone, including the
+	// steps that were cut short by a deadline.
+	MsgEngineStopped          = "engine_stopped"
+	MsgStartupFailed          = "startup_failed"
+	MsgEngineEndedEarly       = "engine_ended_early"
+	MsgHTTPShutdownIncomplete = "http_shutdown_incomplete"
+	MsgMetricsCloseFailed     = "metrics_close_failed"
+	MsgMetricsFlushIncomplete = "metrics_flush_incomplete"
+	MsgDebugRoutesEnabled     = "debug_routes_enabled"
+	MsgHTTPRequest            = "http_request"
+	MsgHTTPPanic              = "http_panic"
+	MsgWSSessionEnded         = "ws_session_ended"
+	MsgWSUpgradeFailed        = "ws_upgrade_failed"
+	MsgClientHello            = "client_hello"
+	MsgWelcomeBeforeWarmup    = "welcome_before_warmup"
+	MsgEncodeFailed           = "encode_failed"
+)
+
+// Component names, used to attribute a log line to a subsystem.
+const (
+	ComponentEngine    = "engine"
+	ComponentMarket    = "market"
+	ComponentSession   = "session"
+	ComponentTier      = "tier"
+	ComponentOrderBook = "orderbook"
+	ComponentCandle    = "candle"
+	ComponentMetrics   = "metrics"
+	ComponentTransport = "transport"
+	ComponentConfig    = "config"
+	ComponentDebug     = "debug"
+)

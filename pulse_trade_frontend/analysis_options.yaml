@@ -1,0 +1,42 @@
+# Static analysis for the PulseTrade frontend.
+#
+# The strict flags are the point: every value that crosses the wire is a decimal
+# string, and an implicit dynamic or an implicit cast is exactly how a price ends
+# up passing through a double without anyone noticing.
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  errors:
+    # Unused code is a review failure, not a warning to scroll past.
+    unused_import: error
+    unused_local_variable: error
+    dead_code: error
+  exclude:
+    - "**/*.g.dart"
+
+linter:
+  rules:
+    always_declare_return_types: true
+    avoid_dynamic_calls: true
+    avoid_print: true
+    avoid_unused_constructor_parameters: true
+    cancel_subscriptions: true
+    close_sinks: true
+    directives_ordering: true
+    eol_at_end_of_file: true
+    literal_only_boolean_expressions: true
+    only_throw_errors: true
+    prefer_const_constructors: true
+    prefer_const_constructors_in_immutables: true
+    prefer_const_declarations: true
+    prefer_final_locals: true
+    prefer_single_quotes: true
+    test_types_in_equals: true
+    unawaited_futures: true
+    unnecessary_lambdas: true
+    unnecessary_parenthesis: true
+    use_super_parameters: true

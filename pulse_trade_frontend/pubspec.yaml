@@ -1,0 +1,58 @@
+name: pulse_trade_frontend
+description: "PulseTrade — real-time crypto market data client for one simulated market."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management: explicit, event-driven, and testable without widgets.
+  flutter_bloc: ^9.0.0
+  equatable: ^2.0.7
+
+  # Transport. The app speaks only to the Go backend.
+  web_socket_channel: ^3.0.1
+  dio: ^5.7.0
+
+  # Internet reachability. This package performs a real probe, so it distinguishes
+  # "connected to a network" from "the internet actually answers".
+  internet_connection_checker_plus: ^2.7.0
+  rxdart: ^0.28.0
+
+  # Routing and deep links.
+  go_router: ^14.6.2
+
+  # Persistence.
+  shared_preferences: ^2.3.3
+  # The Android implementation rather than the umbrella plugin: the umbrella
+  # pulls in the Apple implementation, whose transitive `objective_c` build hook
+  # needs a licensed Xcode. iOS support is a documented extension.
+  path_provider_android: ^2.2.15
+  path_provider_platform_interface: ^2.1.2
+
+  # Rendering. The chart package draws data the app owns; it never fetches anything.
+  fl_chart: ^0.70.2
+
+  # Formatting.
+  intl: ^0.20.2
+
+  # Serialization: wire and cache DTOs are generated so a hand-written mapper
+  # cannot mistype a decimal-string price into a double.
+  json_annotation: ^4.12.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  build_runner: ^2.4.13
+  json_serializable: ^6.9.0
+  mocktail: ^1.0.4
+  bloc_test: ^10.0.0
+
+flutter:
+  uses-material-design: true

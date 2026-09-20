@@ -1,0 +1,103 @@
+# PulseTrade backend lint configuration.
+# Run locally with: golangci-lint run ./...
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - bodyclose
+    - contextcheck
+    - depguard
+    - errorlint
+    - exhaustive
+    - forcetypeassert
+    - gochecknoglobals
+    - gocritic
+    - gosec
+    - misspell
+    - nilerr
+    - noctx
+    - prealloc
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - unconvert
+    - unparam
+    - wrapcheck
+
+  settings:
+    depguard:
+      rules:
+        # The engine must not grow a dependency on sessions, HTTP or SQL, and
+        # the domain must stay importable from anywhere.
+        domain:
+          files:
+            - "**/internal/domain/**"
+          allow:
+            - $gostd
+        market:
+          files:
+            - "**/internal/market/**"
+          allow:
+            - $gostd
+            - github.com/pulsetrade/pulse-trade-backend/internal/domain
+            - github.com/pulsetrade/pulse-trade-backend/internal/exchange
+            - github.com/pulsetrade/pulse-trade-backend/internal/observability
+        delivery:
+          files:
+            - "**/internal/delivery/**"
+          allow:
+            - $gostd
+            - github.com/pulsetrade/pulse-trade-backend/internal/domain
+            - github.com/pulsetrade/pulse-trade-backend/internal/market
+            - github.com/pulsetrade/pulse-trade-backend/internal/protocol
+            - github.com/pulsetrade/pulse-trade-backend/internal/observability
+        exchange:
+          files:
+            - "**/internal/exchange/**"
+          allow:
+            - $gostd
+            - github.com/pulsetrade/pulse-trade-backend/internal/domain
+            - github.com/pulsetrade/pulse-trade-backend/internal/observability
+
+    gochecknoglobals:
+      # Registries and default tables are intentionally package-level.
+      allow:
+        - "liveSymbol"
+        - "allSymbols"
+        - "referenceBy"
+        - "intervalSpecs"
+        - "envKeys"
+        - "Err.*"
+
+    exhaustive:
+      default-signifies-exhaustive: true
+
+    revive:
+      rules:
+        - name: exported
+          arguments: ["disableStutteringCheck"]
+
+  exclusions:
+    rules:
+      # Tests may use helpers that would be flagged in production code.
+      - path: "_test\\.go"
+        linters:
+          - gochecknoglobals
+          - wrapcheck
+          - errcheck
+          - forcetypeassert
+          - gosec
+      # main.go wires everything together and is allowed to import across layers.
+      - path: "cmd/server/main\\.go"
+        linters:
+          - depguard
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

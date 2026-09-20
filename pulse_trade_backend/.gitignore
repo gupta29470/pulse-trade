@@ -1,0 +1,9 @@
+# Build and module caches are kept inside the module so the toolchain works in
+# sandboxed and offline environments without touching ~/Library or ~/go.
+.cache/
+data/
+*.db
+*.db-shm
+*.db-wal
+bin/
+coverage.out
