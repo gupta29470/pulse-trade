@@ -275,13 +275,7 @@ class _DebugConsoleBodyState extends State<_DebugConsoleBody> {
                 destructive: true,
                 onPressed: selected == null
                     ? null
-                    : () => cubit.injectFault(
-                        selected.id,
-                        fault,
-                        parameters: fault == DebugFault.bookGap
-                            ? const <String, String>{'count': '3', 'every': '5'}
-                            : null,
-                      ),
+                    : () => cubit.injectFault(selected.id, fault),
                 description: _faultHint(fault),
               ),
           ],

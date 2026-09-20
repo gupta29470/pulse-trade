@@ -21,12 +21,52 @@ import 'package:pulse_trade_frontend/features/debug/debug_console_state.dart';
 /// that returns the decoded JSON object, and the cubit stays free of `dio`,
 /// which is what lets it be unit-tested with a fake that records paths and
 /// query values.
+///
+/// [method] is part of the contract because the console needs both verbs: the
+/// session list is a `GET`, while every fault and generator control is a `POST`. The
+/// adapter used to hard-code `POST`, so the list answered `405 METHOD_NOT_ALLOWED`,
+/// the console showed no sessions, and its fault controls could never be enabled.
 typedef DebugRequest =
     Future<Map<String, Object?>> Function(
       String path, {
       Map<String, String>? query,
       Object? body,
+      String method,
     });
+
+/// How many book deltas a gap fault skips, and how long a stale-snapshot fault holds
+/// writes. Both are large enough to be unmistakable on the client and small enough
+/// that the session recovers on its own, which is what makes them demonstrable.
+const int bookGapSkipCount = 3;
+const int malformedFrameCount = 1;
+const int staleSnapshotHoldMs = 4000;
+
+/// The JSON body that injects [fault].
+///
+/// The backend serves **one** faults endpoint per session
+/// (`POST /api/v1/debug/sessions/{id}/faults`) and takes every knob as a field of its
+/// body, so a fault maps onto a field rather than onto a path. Each field name here
+/// is one the backend decodes, and the mapping is deliberately a pure function: the
+/// console addressed one path per fault for a while, so all six buttons answered 404,
+/// and a test can now pin the field names without standing up the cubit.
+Map<String, Object?> faultBodyFor(DebugFault fault) => switch (fault) {
+  // A real sequence gap: the client must notice the range jump, resnapshot and resume.
+  DebugFault.bookGap => <String, Object?>{'skipBookDeltas': bookGapSkipCount},
+  // The same range sent twice, which an idempotent client must ignore.
+  DebugFault.duplicateDelta => <String, Object?>{'duplicateDelta': true},
+  // Two ranges in reverse order, which must be rejected rather than applied.
+  DebugFault.outOfOrderDelta => <String, Object?>{'reverseDeltas': true},
+  // Frames the client cannot parse, which must not take the socket down.
+  DebugFault.malformed => <String, Object?>{
+    'malformedFrames': malformedFrameCount,
+  },
+  // Writes held back, so the book ages past its staleness window while the socket stays up.
+  DebugFault.staleSnapshot => <String, Object?>{
+    'holdWritesMs': staleSnapshotHoldMs,
+  },
+  // No candle_closed, so a client that assumes broadcasts will diverge.
+  DebugFault.intervalMismatch => <String, Object?>{'skipCandleClosed': true},
+};
 
 /// The protocol faults the backend can inject per session.
 ///
@@ -172,6 +212,7 @@ final class DebugConsoleCubit extends Cubit<DebugConsoleState> {
       _runAction('generator_burst', () async {
         await _debugRequest(
           '$_debugPrefix/generator/burst',
+          method: 'POST',
           query: <String, String>{'seconds': '$seconds'},
         );
         return 'Volatility burst requested for ${seconds}s';
@@ -185,16 +226,24 @@ final class DebugConsoleCubit extends Cubit<DebugConsoleState> {
 
   /// Closes one session's socket with a shutdown-style goodbye.
   Future<void> dropSession(String id) => _runAction('session_drop', () async {
-    await _debugRequest('$_debugPrefix/sessions/${_encode(id)}/drop');
+    await _debugRequest(
+      '$_debugPrefix/sessions/${_encode(id)}/drop',
+      method: 'POST',
+    );
     return 'Drop requested for ${shortIdOf(id)}';
   });
 
   /// Adds [ms] of artificial write delay to one session.
+  ///
+  /// Delay is a knob on the faults body rather than a route of its own: the backend
+  /// serves one faults endpoint per session and takes the knobs as JSON fields, so a
+  /// separate `/lag` path answered 404.
   Future<void> lagSession(String id, int ms) =>
       _runAction('session_lag', () async {
         await _debugRequest(
-          '$_debugPrefix/sessions/${_encode(id)}/lag',
-          query: <String, String>{'ms': '$ms'},
+          '$_debugPrefix/sessions/${_encode(id)}/faults',
+          method: 'POST',
+          body: <String, Object?>{'writeDelayMs': ms},
         );
         return 'Lag ${ms}ms requested for ${shortIdOf(id)}';
       });
@@ -203,8 +252,9 @@ final class DebugConsoleCubit extends Cubit<DebugConsoleState> {
   Future<void> jitterSession(String id, int ms) =>
       _runAction('session_jitter', () async {
         await _debugRequest(
-          '$_debugPrefix/sessions/${_encode(id)}/jitter',
-          query: <String, String>{'ms': '$ms'},
+          '$_debugPrefix/sessions/${_encode(id)}/faults',
+          method: 'POST',
+          body: <String, Object?>{'writeJitterMs': ms},
         );
         return 'Jitter ${ms}ms requested for ${shortIdOf(id)}';
       });
@@ -219,20 +269,20 @@ final class DebugConsoleCubit extends Cubit<DebugConsoleState> {
 
   /// Injects one protocol fault into [sessionId].
   ///
-  /// [parameters] become query values because the fault endpoints take their
-  /// knobs that way (`book-gap?count=3&every=N`), and the console can therefore
-  /// drive any fault without a bespoke method per parameter.
-  Future<void> injectFault(
-    String sessionId,
-    DebugFault fault, {
-    Map<String, String>? parameters,
-  }) => _runAction('inject_${_snake(fault.slug)}', () async {
-    await _debugRequest(
-      '$_debugPrefix/sessions/${_encode(sessionId)}/faults/${fault.slug}',
-      query: parameters,
-    );
-    return '${fault.label} injected into ${shortIdOf(sessionId)}';
-  });
+  /// The backend serves one faults endpoint per session and takes every knob as a
+  /// field of its JSON body, so a fault is a body rather than a path. The console
+  /// used to address one path per fault, which the backend never served, so each of
+  /// these buttons answered 404 — the mapping is [faultBodyFor] and is unit-tested
+  /// against the field names the backend decodes.
+  Future<void> injectFault(String sessionId, DebugFault fault) =>
+      _runAction('inject_${_snake(fault.slug)}', () async {
+        await _debugRequest(
+          '$_debugPrefix/sessions/${_encode(sessionId)}/faults',
+          method: 'POST',
+          body: faultBodyFor(fault),
+        );
+        return '${fault.label} injected into ${shortIdOf(sessionId)}';
+      });
 
   /// Makes the metrics store fail or recovers it.
   ///
@@ -244,6 +294,7 @@ final class DebugConsoleCubit extends Cubit<DebugConsoleState> {
       _runAction('metrics_store_failure', () async {
         await _debugRequest(
           '$_debugPrefix/metrics/fail',
+          method: 'POST',
           query: <String, String>{'on': fail ? 'true' : 'false'},
         );
         final String storeState = fail ? 'failing' : 'restored';
@@ -269,7 +320,7 @@ final class DebugConsoleCubit extends Cubit<DebugConsoleState> {
     required String path,
     required String success,
   }) => _runAction('generator_${_snake(path)}', () async {
-    await _debugRequest('$_debugPrefix/generator/$path');
+    await _debugRequest('$_debugPrefix/generator/$path', method: 'POST');
     return success;
   });
 
@@ -323,6 +374,7 @@ final class DebugConsoleCubit extends Cubit<DebugConsoleState> {
   Future<List<DebugSessionInfo>> _fetchSessions() async {
     final Map<String, Object?> response = await _debugRequest(
       '$_debugPrefix/sessions',
+      method: 'GET',
     );
     return _parseSessions(response);
   }

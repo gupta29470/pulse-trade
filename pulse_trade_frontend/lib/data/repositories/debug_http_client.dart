@@ -16,6 +16,7 @@ typedef DebugRequest =
       String path, {
       Map<String, String>? query,
       Object? body,
+      String method,
     });
 
 /// The `data/`-side implementation of [DebugRequest].
@@ -40,10 +41,17 @@ final class DebugHttpClient {
   final String _baseUrl;
 
   /// Issues one request. [path] is absolute, e.g. `/api/v1/debug/sessions`.
+  ///
+  /// [method] defaults to `GET` because a read is the one call that is useless when
+  /// it goes out as the wrong verb: the session list is a `GET`, and every fault and
+  /// generator control is a `POST`. Hard-coding `POST` here once meant the list
+  /// answered `405 METHOD_NOT_ALLOWED`, so the console showed no sessions and its
+  /// fault controls could never be enabled.
   Future<Map<String, Object?>> call(
     String path, {
     Map<String, String>? query,
     Object? body,
+    String method = 'GET',
   }) async {
     try {
       final Response<Object?> response = await _dio.request<Object?>(
@@ -51,7 +59,7 @@ final class DebugHttpClient {
         data: body,
         queryParameters: query,
         options: Options(
-          method: 'POST',
+          method: method,
           contentType: Headers.jsonContentType,
           sendTimeout: const Duration(seconds: 5),
           receiveTimeout: const Duration(seconds: 5),
