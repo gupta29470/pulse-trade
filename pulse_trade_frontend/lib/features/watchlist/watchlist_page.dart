@@ -300,37 +300,16 @@ class _WatchlistList extends StatelessWidget {
       onReorderStart: (int index) =>
           cubit.setDragging(isDragging: true, index: index),
       onReorderEnd: (int index) => cubit.setDragging(isDragging: false),
-      // The overlay states the drag's position in the list the user can see,
-      // which is the only count that means anything while a filter is active.
-      proxyDecorator: (Widget child, int index, Animation<double> animation) {
-        final int position = (dragIndex ?? index) + 1;
-        return Material(
-          color: AppColors.surface2,
-          elevation: 4,
-          borderRadius: AppRadii.componentAll,
-          child: Stack(
-            children: <Widget>[
-              child,
-              IgnorePointer(
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Padding(
-                    padding: const EdgeInsets.only(
-                      right: AppSpacing.minTouchTarget,
-                    ),
-                    child: Text(
-                      'Position #$position of ${entries.length}',
-                      style: AppTypography.labelSm.copyWith(
-                        color: AppColors.warn,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+      // A dragged row is lifted above the list and the gap it leaves shows where it
+      // will land, which is the whole affordance: an earlier version also printed the
+      // position over the row, and it covered the price it was floating past.
+      proxyDecorator: (Widget child, int index, Animation<double> animation) =>
+          Material(
+            color: AppColors.surface2,
+            elevation: 4,
+            borderRadius: AppRadii.componentAll,
+            child: child,
           ),
-        );
-      },
       // onReorderItem adjusts newIndex for the removed row; switching without a
       // test that pins the reorder result risks an off-by-one in the list order.
       // ignore: deprecated_member_use
