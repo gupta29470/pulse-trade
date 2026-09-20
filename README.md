@@ -37,6 +37,7 @@ Synthetic market generator  →  Canonical market engine  →  Per-connection ad
 - [Repository layout](#repository-layout)
 - [Deployment (optional)](#deployment-optional)
 - [Known limitations](#known-limitations)
+- [Where the rest is documented](#where-the-rest-is-documented)
 
 ---
 
@@ -58,20 +59,22 @@ curl -s localhost:8080/api/v1/markets/BTCUSDT/orderbook | jq '.bids[0:3]'
 curl -s localhost:8080/api/v1/metrics/summary | jq
 ```
 
-**App** (Android emulator already booted):
+**App**, pointed at the backend you just started (Android emulator already booted):
 
 ```bash
 cd pulse_trade_frontend
 dart run build_runner build    # first checkout only: generates the wire codecs
-flutter run
+flutter run --dart-define=PULSETRADE_GATEWAY=http://10.0.2.2:8080
 ```
+
+`flutter run` with no flag talks to the deployed instance instead — that is what a shipped build does, and it needs no backend of your own. The table below lists both addresses.
 
 | Environment | REST | WebSocket |
 |---|---|---|
 | Hosted — the shipped default | `https://pulse-trade-backend.onrender.com` | `wss://pulse-trade-backend.onrender.com/ws` |
-| Local backend on this machine | `http://192.168.0.103:8080` | `ws://192.168.0.103:8080/ws` |
+| A backend on your own machine | `http://<your-lan-address>:8080` | `ws://<your-lan-address>:8080/ws` |
 
-**The shipped default is the deployed backend**, so a fresh install connects with no configuration. To run the app against a backend on your own machine, build it with `--dart-define` and the address that reaches that machine: `http://10.0.2.2:8080` for an **emulator**, or the machine's LAN address for a **physical device**. To tunnel over USB instead, `adb reverse tcp:8080 tcp:8080` and use `http://localhost:8080` (re-run it after each reconnect — the rule is tied to the adb transport). `10.0.2.2` is the emulator's alias for the host loopback interface. Cleartext HTTP/WS is a **local development transport**; the hosted instance is HTTPS/WSS.
+**A build with no `--dart-define` connects to the deployed backend**, so a fresh install works with no configuration. To run against a backend on your own machine, pass the address that reaches that machine: `http://10.0.2.2:8080` for an **emulator**, or the machine's LAN address for a **physical device**. To tunnel over USB instead, `adb reverse tcp:8080 tcp:8080` and use `http://localhost:8080` (re-run it after each reconnect — the rule is tied to the adb transport). `10.0.2.2` is the emulator's alias for the host loopback interface. Cleartext HTTP/WS is a **local development transport**; the hosted instance is HTTPS/WSS.
 
 `make help` lists every convenience target. Nothing is built or tested by a pipeline — the only workflow in the repository pings a deployed instance to keep it awake, which [Deployment](#deployment-optional) explains.
 
