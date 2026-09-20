@@ -545,6 +545,8 @@ flutter build apk --debug
 
 Point a build at a backend on your own machine instead with `--dart-define=PULSETRADE_GATEWAY=http://<host>:8080`. Keep it a **debug** build: a release build compiles out the debug console, and that console is how a forced tier change is demonstrated. `https` is upgraded to `wss` automatically, so the deployment needs no client change beyond the address.
 
+The host also answers Android's app-link verification file, so `https://pulse-trade-backend.onrender.com/market/BTCUSDT` opens the app when it is tapped in a chat client — which a `pulsetrade://` link cannot do, because clients do not dispatch an unknown scheme. That only holds for a build whose signing certificate is listed in `internal/transport/http/applinks.go`: a release build signed with a different key has to add its SHA-256 there, or the link stays in the browser.
+
 ---
 
 ## Known limitations

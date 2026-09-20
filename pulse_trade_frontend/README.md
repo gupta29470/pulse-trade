@@ -59,7 +59,14 @@ set of numbers.
 - The bottom bar has two destinations, Market and Watchlist. Diagnostics and the
   debug console are full-screen routes; the debug console is compiled out of
   release builds.
-- Deep links are routed by the app itself: `pulsetrade://market/BTCUSDT` and
-  `pulsetrade://watchlist`. Android forwards the intent over a `pulsetrade/deeplink`
-  channel, and the Flutter engine's own deep linking is switched off so the two
-  mechanisms cannot disagree.
+- Deep links are routed by the app itself, in two shapes that mean the same thing:
+  `pulsetrade://market/BTCUSDT` (the custom scheme, which `adb` and a browser
+  dispatch) and `https://pulse-trade-backend.onrender.com/market/BTCUSDT` (the app
+  link, which is the one a chat client will hand over — Slack does not dispatch an
+  unknown scheme). Android forwards the intent over a `pulsetrade/deeplink` channel,
+  and the Flutter engine's own deep linking is switched off so the two mechanisms
+  cannot disagree.
+- The app link only opens the app once Android has verified the host, which the
+  backend answers with `/.well-known/assetlinks.json`. A build signed with a key
+  whose SHA-256 is not listed there falls back to the browser; the debug keystore's
+  fingerprint is the one shipped.
