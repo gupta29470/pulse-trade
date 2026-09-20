@@ -32,7 +32,6 @@ class WatchlistRow extends StatelessWidget {
     this.onTap,
     this.onFavouriteToggle,
     this.onRemove,
-    this.onPin,
   });
 
   /// The row's data, already projected by the cubit.
@@ -48,9 +47,8 @@ class WatchlistRow extends StatelessWidget {
   final int total;
 
   /// This row's index inside the surrounding `ReorderableListView`, when there
-  /// is one. Supplying it turns the drag handle into the **only** drag
-  /// affordance: without it, the list's default behaviour would start a drag on
-  /// any touch down, which would fight the row's tap and its swipe gestures.
+  /// is one. It shades the handle: the drag itself is started by the whole tile,
+  /// so the darkest hint and the working affordance are the same thing.
   final int? dragIndex;
 
   /// Opens the market screen for this symbol.
@@ -62,13 +60,12 @@ class WatchlistRow extends StatelessWidget {
   /// Removes the row; the page wires this to the swipe and to the undo flow.
   final VoidCallback? onRemove;
 
-  /// Pins this symbol to the top of the list.
-  final VoidCallback? onPin;
-
   @override
   Widget build(BuildContext context) {
     final VoidCallback? tap = onTap;
     final int? index = dragIndex;
+    // An affordance, not the target: the whole tile starts the drag, because an
+    // 18 dp glyph is not something a thumb can reliably press.
     final Widget handle = Icon(
       Icons.drag_indicator,
       size: 18,
@@ -78,13 +75,14 @@ class WatchlistRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.spaceSm),
       child: Row(
         children: <Widget>[
-          if (index == null)
-            handle
-          else
-            ReorderableDragStartListener(index: index, child: handle),
+          handle,
           const SizedBox(width: AppSpacing.spaceXs),
           _Glyph(entry: entry),
           const SizedBox(width: AppSpacing.spaceSm),
+          if (entry.isPinned) ...<Widget>[
+            const Icon(Icons.push_pin, size: 14, color: AppColors.warn),
+            const SizedBox(width: AppSpacing.space2xs),
+          ],
           Expanded(child: _Identity(entry: entry)),
           const SizedBox(width: AppSpacing.spaceSm),
           _Quote(entry: entry),
@@ -105,7 +103,6 @@ class WatchlistRow extends StatelessWidget {
           color: AppColors.canvas,
           child: InkWell(
             onTap: tap,
-            onLongPress: onPin,
             child: ConstrainedBox(
               constraints: const BoxConstraints(
                 minHeight: AppSpacing.minTouchTarget,

@@ -410,6 +410,16 @@ void main() {
       expect(cubit.state.pinnedSymbol, 'SOLUSDT');
       expect(storage.pinned, 'SOLUSDT');
       expect(
+        cubit.state.entries.first.symbol,
+        'SOLUSDT',
+        reason: 'pinning to the top has to move the row, not only mark it',
+      );
+      expect(
+        storage.order.first,
+        'SOLUSDT',
+        reason: 'the promoted order is what survives a restart',
+      );
+      expect(
         cubit.state.entries
             .firstWhere((WatchlistEntry e) => e.symbol == 'SOLUSDT')
             .isPinned,
@@ -418,6 +428,11 @@ void main() {
 
       await cubit.unpin();
       expect(cubit.state.pinnedSymbol, isNull);
+      expect(
+        cubit.state.entries.first.symbol,
+        'SOLUSDT',
+        reason: 'unpinning clears the mark, it does not undo the move',
+      );
       await cubit.close();
     });
 

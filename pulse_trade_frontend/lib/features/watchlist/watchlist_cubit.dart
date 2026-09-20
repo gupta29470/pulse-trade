@@ -343,7 +343,25 @@ final class WatchlistCubit extends Cubit<WatchlistState> {
   }
 
   /// Pins [symbol] to the top of the list and persists the choice.
+  ///
+  /// The row is moved, not merely flagged: the whole point of the action is where
+  /// the row ends up, and a marker alone left the order untouched.
   Future<void> pin(String symbol) async {
+    final int from = state.entries.indexWhere(
+      (WatchlistEntry entry) => entry.symbol == symbol,
+    );
+    if (from < 0) return;
+    if (from > 0) {
+      final List<WatchlistEntry> reordered = List<WatchlistEntry>.of(
+        state.entries,
+      );
+      reordered.insert(0, reordered.removeAt(from));
+      await _commitOrder(reordered);
+      // The order is the part that can fail to persist; if it rolled back, the
+      // pin must not be recorded either.
+      if (state.entries.first.symbol != symbol) return;
+    }
+
     final String? previous = state.pinnedSymbol;
     emit(state.copyWith(pinnedSymbol: symbol, clearFailure: true));
     try {
@@ -361,6 +379,9 @@ final class WatchlistCubit extends Cubit<WatchlistState> {
   }
 
   /// Clears the pin and persists the choice.
+  ///
+  /// The row keeps the position it was moved to: unpinning says "this is no
+  /// longer special", not "put it back", so the order the user arranged stays.
   Future<void> unpin() async {
     final String? previous = state.pinnedSymbol;
     emit(state.copyWith(clearPin: true, clearFailure: true));

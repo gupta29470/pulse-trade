@@ -350,9 +350,6 @@ class _WatchlistList extends StatelessWidget {
           onRemove: () async {
             await cubit.remove(entry.symbol);
           },
-          onPin: () async {
-            await cubit.pin(entry.symbol);
-          },
         );
         return Dismissible(
           key: ValueKey<String>('watchlist-${entry.symbol}'),
@@ -386,7 +383,10 @@ class _WatchlistList extends StatelessWidget {
               ),
             );
           },
-          child: row,
+          // The whole tile is the drag affordance: press and hold any row to
+          // reorder it. The handle drawn by the row is a hint, because a thin
+          // glyph is not a target a thumb can reliably press.
+          child: ReorderableDelayedDragStartListener(index: index, child: row),
         );
       },
     );
@@ -503,7 +503,7 @@ class _ReorderHint extends StatelessWidget {
           const SizedBox(width: AppSpacing.space2xs),
           Expanded(
             child: Text(
-              'Press & drag handles to reorder watch priority',
+              'Press and hold a row to reorder · swipe right to pin, left to remove',
               style: AppTypography.bodySm.copyWith(
                 color: AppColors.textSecondary,
               ),
