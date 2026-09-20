@@ -517,7 +517,6 @@ code change (`core/cache/cache_directory.dart` is the only boundary that touches
 pulse_trade/
 ├── README.md                     this file
 ├── Makefile                      convenience targets (not a pipeline)
-├── render.yaml                   the optional hosted deployment, as a blueprint
 ├── .github/workflows/            the keep-alive ping for a free instance
 ├── pulse_trade_backend/          Go backend
 ├── pulse_trade_frontend/         Flutter app
@@ -530,7 +529,7 @@ pulse_trade/
 
 Everything above runs locally, and that is all the exercise needs. A hosted instance is a convenience, so it is documented here rather than assumed.
 
-`render.yaml` records what a Render web service needs: the backend's directory within this monorepo, the build command, and the start command `HTTP_ADDR=0.0.0.0:$PORT ./app`. That last one is the setting that silently breaks a deploy if it is missed — the server reads `HTTP_ADDR`, not the `PORT` variable a host injects, so the injected port has to be passed in. There are no secrets to set: the feed is generated locally.
+A hosted service needs three settings: the backend's directory within this monorepo as its root directory, a build command, and the start command `HTTP_ADDR=0.0.0.0:$PORT ./app`. On Render those are `pulse_trade_backend`, `CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o app ./cmd/server`, and the start command above. The start command is what silently breaks a deploy if it is missed — the server reads `HTTP_ADDR`, not the `PORT` variable a host injects, so the injected port has to be passed in. There are no secrets to set: the feed is generated locally.
 
 Two properties of a free instance are worth knowing before relying on one:
 
