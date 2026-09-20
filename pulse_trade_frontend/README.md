@@ -29,12 +29,15 @@ flutter pub get
 flutter run
 ```
 
-The gateway is compiled into the build. The default is the host's LAN address, so
-a fresh install on a physical device connects with no configuration. An emulator
-build overrides it:
+The gateway is compiled into the build, and the default is the deployed backend,
+so a fresh install connects with no configuration. A build that should talk to a
+local one overrides it:
 
 ```bash
+# emulator
 flutter run --dart-define=PULSETRADE_GATEWAY=http://10.0.2.2:8080
+# physical device on the same LAN as the machine running the backend
+flutter run --dart-define=PULSETRADE_GATEWAY=http://<your-lan-address>:8080
 ```
 
 ## Test it

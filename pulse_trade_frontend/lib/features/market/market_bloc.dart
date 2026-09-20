@@ -157,20 +157,23 @@ final class MarketBloc extends Bloc<MarketEvent, MarketState> {
     await _loadRoster(emit);
     if (isClosed) return;
 
-    final Result<Sourced<List<Candle>>> historyResult = await _history
-        .loadHistory(event.symbol, state.interval, limit: historyLimit);
-    if (isClosed) return;
-    final Result<Sourced<MarketSummary>> summaryResult = await _summaries
-        .loadSummary(event.symbol);
-    if (isClosed) return;
-    final Result<Sourced<OrderBookSnapshot>> bookResult = await _orderBooks
-        .loadSnapshot(event.symbol);
-    if (isClosed) return;
-    // The recent-trade seed comes from the same cache-first seam as history, so
-    // an offline cold start renders the trades panel from disk with a CACHED tag
-    // instead of an empty box. Live trades replace it through the stream.
-    final Result<Sourced<List<Trade>>> tradesResult = await _history
-        .loadRecentTrades(event.symbol, limit: _tradeLimit);
+    // The four reads answer independent questions, so they run together. A symbol
+    // with nothing cached pays one round trip instead of four before the chart can
+    // paint, which is what decides whether the screen fills in or looks stuck on a
+    // slow link. The recent-trade seed comes from the same cache-first seam as
+    // history, so an offline cold start renders the trades panel from disk with a
+    // CACHED tag instead of an empty box; live trades replace it through the stream.
+    final (
+      Result<Sourced<List<Candle>>> historyResult,
+      Result<Sourced<MarketSummary>> summaryResult,
+      Result<Sourced<OrderBookSnapshot>> bookResult,
+      Result<Sourced<List<Trade>>> tradesResult,
+    ) = await (
+      _history.loadHistory(event.symbol, state.interval, limit: historyLimit),
+      _summaries.loadSummary(event.symbol),
+      _orderBooks.loadSnapshot(event.symbol),
+      _history.loadRecentTrades(event.symbol, limit: _tradeLimit),
+    ).wait;
     if (isClosed) return;
 
     if (!_guard.accept(requestId, state.interval)) {
@@ -632,6 +635,12 @@ final class MarketBloc extends Bloc<MarketEvent, MarketState> {
     // Only market-facing frames become events; `ping`, `welcome`, book frames
     // and errors belong to other blocs, and re-publishing them here would
     // duplicate their handling.
+    //
+    // A frame for a market this bloc is no longer showing is dropped: after a
+    // switch the previous subscription's frames are still in flight, and a candle
+    // or trade merged here would appear under the wrong symbol.
+    final String? market = message.marketSymbol;
+    if (market != null && market != _symbol) return;
     if (message is CandleUpdateMessage) {
       add(MarketCandleUpdateReceived(message));
     } else if (message is CandleClosedMessage) {

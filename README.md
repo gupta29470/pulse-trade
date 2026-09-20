@@ -68,9 +68,10 @@ flutter run
 
 | Environment | REST | WebSocket |
 |---|---|---|
-| Physical device (same LAN) | `http://192.168.0.103:8080` | `ws://192.168.0.103:8080/ws` |
+| Hosted — the shipped default | `https://pulse-trade-backend.onrender.com` | `wss://pulse-trade-backend.onrender.com/ws` |
+| Local backend on this machine | `http://192.168.0.103:8080` | `ws://192.168.0.103:8080/ws` |
 
-The shipped default is the host's LAN address, so a **fresh install on a physical device connects with no configuration**. For an **emulator** build use `--dart-define=PULSETRADE_GATEWAY=http://10.0.2.2:8080`; to tunnel over USB instead, `adb reverse tcp:8080 tcp:8080` and use `http://localhost:8080` (re-run it after each reconnect — the rule is tied to the adb transport). `10.0.2.2` is the emulator's alias for the host loopback interface. Cleartext HTTP/WS is a **local development transport**; TLS termination is listed under known limitations.
+**The shipped default is the deployed backend**, so a fresh install connects with no configuration. To run the app against a backend on your own machine, build it with `--dart-define` and the address that reaches that machine: `http://10.0.2.2:8080` for an **emulator**, or the machine's LAN address for a **physical device**. To tunnel over USB instead, `adb reverse tcp:8080 tcp:8080` and use `http://localhost:8080` (re-run it after each reconnect — the rule is tied to the adb transport). `10.0.2.2` is the emulator's alias for the host loopback interface. Cleartext HTTP/WS is a **local development transport**; the hosted instance is HTTPS/WSS.
 
 `make help` lists every convenience target. Nothing is built or tested by a pipeline — the only workflow in the repository pings a deployed instance to keep it awake, which [Deployment](#deployment-optional) explains.
 
@@ -534,15 +535,15 @@ A hosted service needs three settings: the backend's directory within this monor
 Two properties of a free instance are worth knowing before relying on one:
 
 - **It sleeps** after roughly fifteen minutes without inbound traffic, and the next request pays the boot. `.github/workflows/keepalive.yml` pings `/health` every five minutes to prevent that; it stays inert until the repository variable `PULSETRADE_URL` names the service. Treat it as a fallback for an external uptime monitor rather than a substitute: a scheduled workflow can be delayed under load, and GitHub disables one after sixty days without repository activity. While the app is connected it keeps the service awake by itself, because its heartbeat and watchlist polling are inbound traffic.
-- **It is slower.** Warmup is budgeted at ten seconds for six markets and a free instance has a fraction of a core, so the server may start with a partly filled chart rather than waiting. `WARMUP_MAX_EVENTS` trades history depth for warmup time; on a larger instance the default is fine.
+- **It warms up fully.** Warmup is budgeted at ten seconds for six markets, and the deployed free instance stays inside it: the service serves the full documented history (500 candles at `1m` and `1h`, ~180 at `4h`, ~31 at `1D`). On a smaller instance `WARMUP_MAX_EVENTS` trades history depth for warmup time.
 
-The app has to be built against whichever gateway serves it, because the address is compiled in:
+The address is compiled in, and the default is the deployed service, so a plain build targets it:
 
 ```bash
-flutter build apk --debug --dart-define=PULSETRADE_GATEWAY=https://your-service.onrender.com
+flutter build apk --debug
 ```
 
-Keep that a **debug** build: a release build compiles out the debug console, and that console is how a forced tier change is demonstrated. `https` is upgraded to `wss` automatically, so the deployment needs no client change beyond the address.
+Point a build at a backend on your own machine instead with `--dart-define=PULSETRADE_GATEWAY=http://<host>:8080`. Keep it a **debug** build: a release build compiles out the debug console, and that console is how a forced tier change is demonstrated. `https` is upgraded to `wss` automatically, so the deployment needs no client change beyond the address.
 
 ---
 
@@ -560,7 +561,7 @@ doc comment at that seam states the reason.
 5. **Six markets cost six warmups.** Cold start warms every market concurrently and takes about four seconds; each market keeps its own generator, engine and event bus, so the cost grows with the roster.
 6. **SQLite retention is time-boxed** (latency samples 24 h by default). Longer retention or multi-process access would want Postgres; the repository interface is the seam.
 7. **Metrics are best-effort.** A saturated queue drops the newest record. Correctness never depends on them, and drops are counted, but a metric can be lost under extreme load.
-8. **No TLS/WSS.** Cleartext HTTP and WS are used for local development; a production deployment needs TLS termination and a cleartext-disabled manifest.
+8. **Cleartext belongs to local development.** The hosted instance is HTTPS/WSS and the app upgrades `https` to `wss` on its own, so the deployed path is encrypted. A backend on your own machine is served over plain HTTP/WS; the manifest permits cleartext only for loopback addresses, so a physical device pointing at a LAN address may need that address added there.
 9. **No authentication.** The data is public and read-only, and the only per-connection limits are message rate and frame size.
 10. **Single process, single node.** Sessions live in one process, so a restart disconnects everyone. Scaling out would need a shared bus and sticky sessions.
 11. **Chart zoom and pan are bounded by the library**, and the series is windowed to our own 500-candle retention.

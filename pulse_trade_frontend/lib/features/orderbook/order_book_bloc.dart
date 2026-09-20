@@ -202,6 +202,12 @@ final class OrderBookBloc extends Bloc<OrderBookEvent, OrderBookStateModel> {
   /// `if` chain, so an unrelated frame is ignored rather than falling into a
   /// default that mutates something.
   void _onMessage(ServerMessage message) {
+    // Switching markets leaves the previous subscription's frames in flight, and a
+    // book is rebuilt from a snapshot while its update ids restart. Without this
+    // check those late frames land on the new market's book, which showed up as one
+    // market's bids priced against another market's asks.
+    final String? market = message.marketSymbol;
+    if (market != null && market != _symbol) return;
     if (message is OrderBookDeltaMessage) {
       add(OrderBookDeltaReceived(message));
       return;

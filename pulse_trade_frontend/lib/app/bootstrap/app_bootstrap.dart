@@ -176,12 +176,13 @@ final class AppBootstrap {
 
   /// The base URL used when the user has not overridden it.
   ///
-  /// A local-development default pointing at the machine running
-  /// `go run ./cmd/server` on the developer's LAN. Overridable at build time
-  /// with `--dart-define=PULSETRADE_GATEWAY=...`.
+  /// The deployed backend, so a plain build connects with no configuration. A
+  /// build that should talk to a local one overrides it with
+  /// `--dart-define=PULSETRADE_GATEWAY=http://<host>:8080`, and an install that
+  /// already carries a stored override keeps using that.
   static const String defaultBaseUrl = String.fromEnvironment(
     'PULSETRADE_GATEWAY',
-    defaultValue: 'http://192.168.0.103:8080',
+    defaultValue: 'https://pulse-trade-backend.onrender.com',
   );
 
   /// The symbol the market tab opens on before any route names another.

@@ -7,7 +7,7 @@
 # Set the URL once, as a repository variable (Settings > Secrets and variables >
 # Actions > Variables > New repository variable):
 #
-#   PULSETRADE_URL = https://your-service.onrender.com
+#   PULSETRADE_URL = https://pulse-trade-backend.onrender.com
 #
 # Until that variable exists the job does nothing and exits successfully, so this
 # can be merged before the service is deployed.

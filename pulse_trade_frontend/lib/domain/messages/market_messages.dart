@@ -242,3 +242,23 @@ final class MarketSummaryMessage extends ServerMessage {
   @override
   List<Object?> get props => <Object?>[...super.props, summary];
 }
+
+/// The market a frame belongs to, or `null` for a frame that names none.
+///
+/// One socket carries one market at a time, but switching markets leaves the
+/// previous subscription's frames in flight. A bloc has to be able to ask "is
+/// this mine?" before it merges anything, or a delta from the market it just
+/// left lands in the market it just opened.
+extension ServerMessageMarket on ServerMessage {
+  /// The symbol this frame describes, when it describes one.
+  String? get marketSymbol => switch (this) {
+    final OrderBookSnapshotMessage m => m.snapshot.symbol,
+    final OrderBookDeltaMessage m => m.symbol,
+    final TradeMessage m => m.trade.symbol,
+    final TradeBatchMessage m => m.symbol,
+    final CandleUpdateMessage m => m.symbol,
+    final CandleClosedMessage m => m.symbol,
+    final MarketSummaryMessage m => m.summary.symbol,
+    _ => null,
+  };
+}
