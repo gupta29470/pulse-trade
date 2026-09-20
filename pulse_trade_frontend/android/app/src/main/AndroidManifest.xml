@@ -32,15 +32,33 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Deep links: pulsetrade://market/BTCUSDT and pulsetrade://watchlist.
-                 An https app-link variant would need a real domain serving
-                 /.well-known/assetlinks.json, which this project deliberately does
-                 not have, so only the custom scheme is registered. -->
+            <!-- Deep links, two shapes.
+                 The custom scheme is what `adb` and a browser dispatch straight to
+                 the app. A chat client will not dispatch an unknown scheme — Slack
+                 keeps the tap in its own view — so the https app link is the one a
+                 link pasted into a message needs. Android only opens the app for it
+                 after verifying that the host belongs to the app, which the backend
+                 answers with /.well-known/assetlinks.json; without that file the
+                 link stays in the browser. The path prefixes keep the API URLs that
+                 share the same host out of the app. -->
             <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="pulsetrade"/>
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="pulse-trade-backend.onrender.com"
+                    android:pathPrefix="/market"/>
+                <data
+                    android:scheme="https"
+                    android:host="pulse-trade-backend.onrender.com"
+                    android:pathPrefix="/watchlist"/>
             </intent-filter>
         </activity>
         <meta-data

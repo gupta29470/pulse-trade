@@ -71,30 +71,55 @@ final class AppRouter {
   /// The custom deep-link scheme the Android manifest is expected to register.
   static const String deepLinkScheme = 'pulsetrade';
 
+  /// The host the deployed backend answers on.
+  ///
+  /// It is also the host Android verifies for app links, so an `https` link to a
+  /// market path on it opens the screen. One host serves the data and owns the
+  /// links, which is why this is not a separate marketing domain.
+  static const String appLinkHost = 'pulse-trade-backend.onrender.com';
+
   /// The live `GoRouter` handed to `MaterialApp.router`.
   final GoRouter router;
 
   /// Whether the debug console route exists.
   final bool debugControlsEnabled;
 
-  /// Converts a `pulsetrade://` deep link into a route location.
+  /// Converts a deep link into a route location.
   ///
-  /// Returns `null` for a scheme or host this build does not handle, so the
-  /// caller can ignore the link instead of navigating somewhere arbitrary.
-  /// `pulsetrade://market/BTCUSDT` has host `market` and path `/BTCUSDT`.
+  /// Two shapes arrive, and both mean the same thing:
+  ///
+  /// * the custom scheme, where the destination is the host —
+  ///   `pulsetrade://market/BTCUSDT`, which is what `adb` and a browser dispatch;
+  /// * the https app link, where the destination is the path —
+  ///   `https://<host>/market/BTCUSDT`, which is what a chat client will hand over.
+  ///
+  /// Returns `null` for anything this build does not handle, so the caller can
+  /// ignore the link instead of navigating somewhere arbitrary.
   static String? locationForDeepLink(Uri uri) {
-    if (uri.scheme != deepLinkScheme) return null;
-    final String host = uri.host;
-    if (host == 'watchlist') return AppPaths.watchlist;
-    if (host == 'diagnostics') return AppPaths.diagnostics;
-    if (host == 'market') {
-      final String symbol = uri.pathSegments.isEmpty
-          ? ''
-          : uri.pathSegments.first.toUpperCase();
-      if (symbol.isEmpty) return AppPaths.defaultMarket;
-      return AppPaths.market(symbol);
+    final String section;
+    final String symbol;
+    if (uri.scheme == deepLinkScheme) {
+      section = uri.host;
+      symbol = uri.pathSegments.isEmpty ? '' : uri.pathSegments.first;
+    } else if (uri.scheme == 'https' && uri.host == appLinkHost) {
+      if (uri.pathSegments.isEmpty) return null;
+      section = uri.pathSegments.first;
+      symbol = uri.pathSegments.length > 1 ? uri.pathSegments[1] : '';
+    } else {
+      return null;
     }
-    return null;
+
+    switch (section) {
+      case 'watchlist':
+        return AppPaths.watchlist;
+      case 'diagnostics':
+        return AppPaths.diagnostics;
+      case 'market':
+        if (symbol.isEmpty) return AppPaths.defaultMarket;
+        return AppPaths.market(symbol.toUpperCase());
+      default:
+        return null;
+    }
   }
 
   /// Parses a raw deep-link string, returning `null` when it is unusable.

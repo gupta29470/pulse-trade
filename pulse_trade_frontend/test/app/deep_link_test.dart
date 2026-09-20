@@ -42,6 +42,44 @@ void main() {
     expect(location(), '/market/BTCUSDT');
   });
 
+  test('an https app link opens that symbol', () {
+    // The shape a chat client will hand over, where the destination is the path.
+    expect(
+      links.open('https://${AppRouter.appLinkHost}/market/ETHUSDT'),
+      isTrue,
+    );
+    expect(location(), '/market/ETHUSDT');
+  });
+
+  test('an https app link opens the watchlist', () {
+    expect(links.open('https://${AppRouter.appLinkHost}/watchlist'), isTrue);
+    expect(location(), '/watchlist');
+  });
+
+  test('an https app link with no symbol opens the default market', () {
+    expect(links.open('https://${AppRouter.appLinkHost}/market'), isTrue);
+    expect(location(), AppPaths.defaultMarket);
+  });
+
+  test('an https link to the API on the same host is ignored', () {
+    final String before = location();
+    expect(
+      links.open('https://${AppRouter.appLinkHost}/api/v1/markets'),
+      isFalse,
+    );
+    expect(
+      location(),
+      before,
+      reason: 'the host serves data as well as links, and data is not a screen',
+    );
+  });
+
+  test('an https link with no path is ignored', () {
+    final String before = location();
+    expect(links.open('https://${AppRouter.appLinkHost}'), isFalse);
+    expect(location(), before);
+  });
+
   test('an unrecognised host is ignored, not routed', () {
     final String before = location();
     expect(links.open('pulsetrade://nonsense/thing'), isFalse);

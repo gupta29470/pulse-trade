@@ -203,6 +203,9 @@ func NewRouter(cfg RouterConfig) http.Handler {
 
 	router.Get("/health", healthAPI.liveness)
 	router.Get("/api/v1/health", healthAPI.detailed)
+	// Android fetches this to decide whether an https link to this host opens the
+	// app; chat clients will not dispatch the custom scheme.
+	router.Get("/.well-known/assetlinks.json", appLinks)
 
 	router.Route("/api/v1", func(api chi.Router) {
 		api.Get("/markets", marketAPI.list)
