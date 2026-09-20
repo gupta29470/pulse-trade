@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pulse_trade_frontend/app/build_flags.dart';
 import 'package:pulse_trade_frontend/app/theme/app_colors.dart';
 import 'package:pulse_trade_frontend/app/theme/app_spacing.dart';
 import 'package:pulse_trade_frontend/app/theme/app_typography.dart';
@@ -18,25 +18,29 @@ import 'package:pulse_trade_frontend/features/debug/widgets/debug_action_button.
 
 /// The debug console: generator, session, tier and fault controls.
 ///
-/// The router omits this route in release builds. The [kReleaseMode]
-/// guard here is a second line of defence for the case where someone routes to
-/// it by hand: a release build renders an explanation instead of a set of
-/// controls the backend would refuse.
+/// The router registers this route only when [debugConsoleEnabled] is set, and the
+/// guard here is the second line of defence for the case where someone routes to it
+/// by hand: a build without the flag renders an explanation instead of a set of
+/// controls the backend would refuse. The two must read the same flag — a guard on
+/// `kReleaseMode` alone made the console reachable-but-empty in a release build that
+/// opted in, which is exactly the build that has to demonstrate a forced tier
+/// change.
 class DebugConsolePage extends StatelessWidget {
   /// Creates the console page.
   const DebugConsolePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    if (kReleaseMode) {
+    if (!debugConsoleEnabled) {
       return Scaffold(
         backgroundColor: AppColors.canvas,
         appBar: AppBar(title: const Text('Debug console')),
         body: const EmptyState(
           title: 'Debug console unavailable',
           message:
-              'Generator controls and fault injection are compiled out of '
-              'release builds.',
+              'Generator controls and fault injection are not enabled in this '
+              'build. Rebuild with '
+              '--dart-define=PULSETRADE_DEBUG_CONSOLE=true to use them.',
           icon: Icons.lock_outline_rounded,
         ),
       );
@@ -383,9 +387,9 @@ class _DebugConsoleBodyState extends State<_DebugConsoleBody> {
 
   /// A titled card in the console's own visual language.
   ///
-  /// Deliberately its own card rather than a shared one: the debug console is
-  /// compiled out of release builds and shares nothing else with the rest of
-  /// the app, so it keeps its own thin wrapper over the two app-level widgets
+  /// Deliberately its own card rather than a shared one: the debug console is a
+  /// build-flagged screen that shares nothing else with the rest of the app, so it
+  /// keeps its own thin wrapper over the two app-level widgets
   /// instead of creating a cross-feature dependency on a screen half this one's
   /// tests never mount.
   Widget _card({
