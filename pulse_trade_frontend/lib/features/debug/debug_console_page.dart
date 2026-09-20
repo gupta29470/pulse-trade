@@ -61,6 +61,27 @@ class _DebugConsoleBodyState extends State<_DebugConsoleBody> {
   /// The session fault injection currently targets, or `null` for the first one.
   String? _selectedSessionId;
 
+  /// The control whose action is in flight, so only *it* shows a spinner.
+  ///
+  /// The cubit has one `isBusy` for the screen, and every chip was reading it: tapping
+  /// one control told the tester that all of them were loading. The button that was
+  /// tapped owns the spinner; the others stay available, because a debug console is used
+  /// by one person trying things in sequence.
+  String? _pendingAction;
+
+  /// Runs [action] with [id] marked in flight until it finishes.
+  void _run(String id, Future<void> Function() action) {
+    setState(() => _pendingAction = id);
+    unawaited(
+      action().whenComplete(() {
+        if (mounted) setState(() => _pendingAction = null);
+      }),
+    );
+  }
+
+  /// Whether the control identified by [id] is the one in flight.
+  bool _isPending(String id) => _pendingAction == id;
+
   @override
   void initState() {
     super.initState();
@@ -213,12 +234,22 @@ class _DebugConsoleBodyState extends State<_DebugConsoleBody> {
           _SessionRow(
             session: sessions[index],
             selected: selected?.id == sessions[index].id,
-            busy: state.isBusy,
+            busyAction: _pendingAction,
+            rowId: 'session_${sessions[index].id}',
             onSelect: () =>
                 setState(() => _selectedSessionId = sessions[index].id),
-            onDrop: () => cubit.dropSession(sessions[index].id),
-            onLag: () => cubit.lagSession(sessions[index].id, 150),
-            onJitter: () => cubit.jitterSession(sessions[index].id, 200),
+            onDrop: () => _run(
+              'session_${sessions[index].id}_drop',
+              () => cubit.dropSession(sessions[index].id),
+            ),
+            onLag: () => _run(
+              'session_${sessions[index].id}_lag',
+              () => cubit.lagSession(sessions[index].id, 150),
+            ),
+            onJitter: () => _run(
+              'session_${sessions[index].id}_jitter',
+              () => cubit.jitterSession(sessions[index].id, 200),
+            ),
           ),
         ],
     ],
@@ -241,8 +272,11 @@ class _DebugConsoleBodyState extends State<_DebugConsoleBody> {
                   ? '${override.wire} · active'
                   : override.wire,
               selected: override == state.tierOverride,
-              busy: state.isBusy,
-              onPressed: () => cubit.forceTier(override),
+              busy: _isPending('tier_${override.wire}'),
+              onPressed: () => _run(
+                'tier_${override.wire}',
+                () => cubit.forceTier(override),
+              ),
               description: override.isActive
                   ? 'Pin this session to ${override.wire}'
                   : 'Return the tier to the hysteresis machine',
@@ -272,11 +306,14 @@ class _DebugConsoleBodyState extends State<_DebugConsoleBody> {
             for (final DebugFault fault in DebugFault.values)
               DebugActionButton(
                 label: fault.label,
-                busy: state.isBusy,
+                busy: _isPending('fault_${fault.slug}'),
                 destructive: true,
                 onPressed: selected == null
                     ? null
-                    : () => cubit.injectFault(selected.id, fault),
+                    : () => _run(
+                        'fault_${fault.slug}',
+                        () => cubit.injectFault(selected.id, fault),
+                      ),
                 description: _faultHint(fault),
               ),
           ],
@@ -298,14 +335,20 @@ class _DebugConsoleBodyState extends State<_DebugConsoleBody> {
               DebugActionButton(
                 label: 'Fail metrics store',
                 destructive: true,
-                busy: state.isBusy,
-                onPressed: () => cubit.setMetricsStoreFailure(true),
+                busy: _isPending('metrics_fail'),
+                onPressed: () => _run(
+                  'metrics_fail',
+                  () => cubit.setMetricsStoreFailure(true),
+                ),
                 description: 'Make metrics writes fail, then read /health',
               ),
               DebugActionButton(
                 label: 'Restore metrics store',
-                busy: state.isBusy,
-                onPressed: () => cubit.setMetricsStoreFailure(false),
+                busy: _isPending('metrics_restore'),
+                onPressed: () => _run(
+                  'metrics_restore',
+                  () => cubit.setMetricsStoreFailure(false),
+                ),
                 description: 'Restore writes, then read /health',
               ),
             ],
@@ -324,8 +367,8 @@ class _DebugConsoleBodyState extends State<_DebugConsoleBody> {
           DebugActionButton(
             label: 'Drop this connection',
             destructive: true,
-            busy: state.isBusy,
-            onPressed: cubit.dropConnection,
+            busy: _isPending('disconnect'),
+            onPressed: () => _run('disconnect', cubit.dropConnection),
             description: 'stream.disconnect(reason: debug)',
           ),
         ],
@@ -450,7 +493,8 @@ class _SessionRow extends StatelessWidget {
   const _SessionRow({
     required this.session,
     required this.selected,
-    required this.busy,
+    required this.busyAction,
+    required this.rowId,
     required this.onSelect,
     required this.onDrop,
     required this.onLag,
@@ -459,7 +503,13 @@ class _SessionRow extends StatelessWidget {
 
   final DebugSessionInfo session;
   final bool selected;
-  final bool busy;
+
+  /// The control in flight on the console, so each button here can tell whether it is
+  /// the one that was tapped.
+  final String? busyAction;
+
+  /// This row's identity, prefixed onto its three action ids.
+  final String rowId;
   final VoidCallback onSelect;
   final VoidCallback onDrop;
   final VoidCallback onLag;
@@ -526,17 +576,17 @@ class _SessionRow extends StatelessWidget {
                   DebugActionButton(
                     label: 'Drop',
                     destructive: true,
-                    busy: busy,
+                    busy: busyAction == '${rowId}_drop',
                     onPressed: onDrop,
                   ),
                   DebugActionButton(
                     label: 'Lag 150',
-                    busy: busy,
+                    busy: busyAction == '${rowId}_lag',
                     onPressed: onLag,
                   ),
                   DebugActionButton(
                     label: 'Jitter 200',
-                    busy: busy,
+                    busy: busyAction == '${rowId}_jitter',
                     onPressed: onJitter,
                   ),
                 ],
