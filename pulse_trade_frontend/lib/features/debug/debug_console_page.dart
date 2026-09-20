@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pulse_trade_frontend/app/build_flags.dart';
 import 'package:pulse_trade_frontend/app/theme/app_colors.dart';
 import 'package:pulse_trade_frontend/app/theme/app_spacing.dart';
@@ -45,6 +46,12 @@ class DebugConsolePage extends StatelessWidget {
         ),
       );
     }
+    // The market the console was opened from decides which engine the generator
+    // controls act on: the route carries it, because a control that silently acts on a
+    // different market than the screen behind it is worse than no control.
+    context.read<DebugConsoleCubit>().targetMarket(
+      GoRouterState.of(context).uri.queryParameters['symbol'],
+    );
     return const _DebugConsoleBody();
   }
 }
@@ -173,48 +180,53 @@ class _DebugConsoleBodyState extends State<_DebugConsoleBody> {
   }
 
   /// Generator controls.
-  Widget _generatorCard(DebugConsoleCubit cubit, DebugConsoleState state) =>
-      _card(
-        title: 'Generator',
-        subtitle: 'The single engine every screen renders from.',
+  Widget _generatorCard(
+    DebugConsoleCubit cubit,
+    DebugConsoleState state,
+  ) => _card(
+    title: 'Generator',
+    subtitle: cubit.targetSymbol == null
+        ? 'Targets the backend\'s default market: this console was opened without '
+              'naming one.'
+        : 'Targets ${cubit.targetSymbol} — the market this console was opened from.',
+    children: <Widget>[
+      Wrap(
+        spacing: AppSpacing.spaceXs,
+        runSpacing: AppSpacing.spaceXs,
         children: <Widget>[
-          Wrap(
-            spacing: AppSpacing.spaceXs,
-            runSpacing: AppSpacing.spaceXs,
-            children: <Widget>[
-              DebugActionButton(
-                label: 'Pause',
-                onPressed: state.isBusy ? null : cubit.pauseGenerator,
-                description: 'Stop generating trades',
-              ),
-              DebugActionButton(
-                label: 'Resume',
-                onPressed: state.isBusy ? null : cubit.resumeGenerator,
-                description: 'Resume generation',
-              ),
-              DebugActionButton(
-                label: 'Reset market',
-                destructive: true,
-                onPressed: state.isBusy ? null : cubit.resetGenerator,
-                description:
-                    'Reset the epoch and re-warm; the client must '
-                    'resynchronise',
-              ),
-              DebugActionButton(
-                label: 'Burst 5 s',
-                onPressed: state.isBusy ? null : () => cubit.burstGenerator(),
-                description: 'Force a volatility burst',
-              ),
-              DebugActionButton(
-                label: 'Empty history',
-                destructive: true,
-                onPressed: state.isBusy ? null : cubit.emptyHistory,
-                description: 'Serve empty candle arrays to the next requests',
-              ),
-            ],
+          DebugActionButton(
+            label: 'Pause',
+            onPressed: state.isBusy ? null : cubit.pauseGenerator,
+            description: 'Stop generating trades',
+          ),
+          DebugActionButton(
+            label: 'Resume',
+            onPressed: state.isBusy ? null : cubit.resumeGenerator,
+            description: 'Resume generation',
+          ),
+          DebugActionButton(
+            label: 'Reset market',
+            destructive: true,
+            onPressed: state.isBusy ? null : cubit.resetGenerator,
+            description:
+                'Reset the epoch and re-warm; the client must '
+                'resynchronise',
+          ),
+          DebugActionButton(
+            label: 'Burst 5 s',
+            onPressed: state.isBusy ? null : () => cubit.burstGenerator(),
+            description: 'Force a volatility burst',
+          ),
+          DebugActionButton(
+            label: 'Empty history',
+            destructive: true,
+            onPressed: state.isBusy ? null : cubit.emptyHistory,
+            description: 'Serve empty candle arrays to the next requests',
           ),
         ],
-      );
+      ),
+    ],
+  );
 
   /// Session list with per-row controls.
   Widget _sessionsCard(

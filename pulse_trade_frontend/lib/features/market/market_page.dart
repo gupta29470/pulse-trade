@@ -414,7 +414,9 @@ class _TierChipSlot extends StatelessWidget {
           // Long-pressing the tier chip keeps that control next to the thing it
           // changes, and only in builds that register the route.
           onLongPress: debugConsoleEnabled
-              ? () => context.push(AppPaths.debug)
+              ? () => context.push(
+                  '${AppPaths.debug}?symbol=${context.read<MarketBloc>().state.symbol}',
+                )
               : null,
           child: chip,
         );

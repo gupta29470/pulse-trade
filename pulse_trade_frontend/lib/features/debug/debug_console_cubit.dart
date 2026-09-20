@@ -315,12 +315,31 @@ final class DebugConsoleCubit extends Cubit<DebugConsoleState> {
     return 'Socket closed — the client must show STALE and reconnect';
   });
 
-  /// Runs a generator control, which needs no query parameters.
+  /// The market the generator controls act on, or `null` for the backend's default.
+  ///
+  /// The generator endpoints take `?symbol=`; without it they act on the configured
+  /// default market. A console opened from the SOLUSDT screen used to pause BTCUSDT —
+  /// the screen kept trading and the control looked broken.
+  String? _targetSymbol;
+
+  /// The market the generator controls act on, for the card that says so.
+  String? get targetSymbol => _targetSymbol;
+
+  /// Points the generator controls at [symbol].
+  void targetMarket(String? symbol) => _targetSymbol = symbol;
+
+  /// Runs a generator control against [targetSymbol].
   Future<void> _generatorAction({
     required String path,
     required String success,
   }) => _runAction('generator_${_snake(path)}', () async {
-    await _debugRequest('$_debugPrefix/generator/$path', method: 'POST');
+    await _debugRequest(
+      '$_debugPrefix/generator/$path',
+      method: 'POST',
+      query: _targetSymbol == null
+          ? null
+          : <String, String>{'symbol': _targetSymbol!},
+    );
     return success;
   });
 
