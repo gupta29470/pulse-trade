@@ -7,6 +7,7 @@ import 'package:pulse_trade_frontend/core/logging/log_fields.dart';
 import 'package:pulse_trade_frontend/core/networking/client_message.dart';
 import 'package:pulse_trade_frontend/domain/entities/delivery_health.dart';
 import 'package:pulse_trade_frontend/domain/entities/delivery_override.dart';
+import 'package:pulse_trade_frontend/domain/entities/delivery_tier.dart';
 import 'package:pulse_trade_frontend/domain/messages/delivery_messages.dart';
 import 'package:pulse_trade_frontend/domain/messages/server_message.dart';
 import 'package:pulse_trade_frontend/domain/repositories/market_stream_repository.dart';
@@ -33,6 +34,15 @@ final class AdaptiveDeliveryCubit extends Cubit<AdaptiveDeliveryState> {
   ///
   /// [clock] stamps a snapshot when a frame arrives without a local receipt
   /// time, so the readout can still be aged.
+  /// The last projection this cubit logged, so a `health` frame that changes nothing is
+  /// not logged at all.
+  ///
+  /// `health` arrives twice a second. Logging every frame filled the on-device ring with
+  /// one repeated record and pushed out exactly the events the ring exists for — a
+  /// recovery, a reconnect, a lifecycle change — which is how the order-book recovery path
+  /// stayed invisible while it was failing.
+  ({DeliveryTier tier, String reason})? _lastLoggedProjection;
+
   AdaptiveDeliveryCubit({required MarketStreamRepository stream, Clock? clock})
     : _stream = stream,
       _clock = clock ?? SystemClock(),
@@ -109,20 +119,28 @@ final class AdaptiveDeliveryCubit extends Cubit<AdaptiveDeliveryState> {
     if (message is! HealthMessage) return;
 
     final DeliveryHealth health = message.health;
-    // Logged before the emit, so `fromTier` is genuinely the previous tier.
-    AppLogger.info(
-      _msgHealthProjected,
-      fields: <String, Object?>{
-        LogFields.component: LogComponents.tier,
-        LogFields.tier: health.tier.wire,
-        LogFields.fromTier: state.tier.wire,
-        LogFields.reason: health.reason,
-        LogFields.rttMs: health.rttMs,
-        LogFields.jitterMs: health.jitterMs,
-        LogFields.targetRate: health.targetRatePerSec,
-        LogFields.effectiveRate: health.effectiveRatePerSec,
-      },
+    // Logged before the emit, so `fromTier` is genuinely the previous tier, and only
+    // when the projection changes: a steady stream of identical records is noise.
+    final ({DeliveryTier tier, String reason}) projection = (
+      tier: health.tier,
+      reason: health.reason,
     );
+    if (_lastLoggedProjection != projection) {
+      _lastLoggedProjection = projection;
+      AppLogger.info(
+        _msgHealthProjected,
+        fields: <String, Object?>{
+          LogFields.component: LogComponents.tier,
+          LogFields.tier: health.tier.wire,
+          LogFields.fromTier: state.tier.wire,
+          LogFields.reason: health.reason,
+          LogFields.rttMs: health.rttMs,
+          LogFields.jitterMs: health.jitterMs,
+          LogFields.targetRate: health.targetRatePerSec,
+          LogFields.effectiveRate: health.effectiveRatePerSec,
+        },
+      );
+    }
 
     emit(
       AdaptiveDeliveryState(

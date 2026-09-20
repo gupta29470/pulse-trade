@@ -137,6 +137,17 @@ final class OrderBookBloc extends Bloc<OrderBookEvent, OrderBookStateModel> {
     );
   }
 
+  /// True while an image this bloc asked for is in flight because the book was known to
+  /// be discontinuous — a gap, an epoch change, a buffer overflow.
+  ///
+  /// A recovery image must be installed even when it lands *behind* the locally applied
+  /// update id, which is the normal case: the client keeps applying deltas while the REST
+  /// fetch is in flight, so the answer is almost always older than what the socket has
+  /// already delivered. Dropping it as stale was the bug — the levels the missed range
+  /// would have removed stayed in the book for good, which showed up as a bid frozen
+  /// above a market that had moved away from it.
+  bool _recoveryPending = false;
+
   /// Attaches to the typed feed. The generation guard means a listener that was
   /// not cancelled in time cannot deliver a frame into the new session.
   void _bindStreams(int generation) {
@@ -260,7 +271,7 @@ final class OrderBookBloc extends Bloc<OrderBookEvent, OrderBookStateModel> {
     final bool installed =
         syncState == OrderBookState.live ||
         syncState == OrderBookState.applying;
-    if (behind && installed) {
+    if (behind && installed && !_recoveryPending) {
       AppLogger.debug(
         'order_book_stale_snapshot_dropped',
         fields: _fields(<String, Object?>{
@@ -415,6 +426,9 @@ final class OrderBookBloc extends Bloc<OrderBookEvent, OrderBookStateModel> {
             }),
           );
         }
+        if (effect.reason != 'subscribe') {
+          _recoveryPending = true;
+        }
         unawaited(_loadSnapshot(effect, _generation));
       } else if (effect is OrderBookStateChanged) {
         _mirrorState(effect, emit);
@@ -518,12 +532,14 @@ final class OrderBookBloc extends Bloc<OrderBookEvent, OrderBookStateModel> {
           LogFields.error: failure.message,
         }),
       );
+      _recoveryPending = false;
       add(OrderBookStreamFailed(failure));
       return;
     }
 
     final Sourced<OrderBookSnapshot>? sourced = result.valueOrNull;
     if (sourced == null) return;
+    _recoveryPending = false;
     _snapshotProvenance[sourced.value.updateId] = sourced.provenance;
     if (_snapshotProvenance.length > _provenanceCap) {
       _snapshotProvenance.remove(_snapshotProvenance.keys.first);
