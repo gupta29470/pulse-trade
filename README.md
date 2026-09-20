@@ -440,7 +440,7 @@ Available in debug builds through the backend debug endpoints and the in-app deb
 
 | Control | Endpoint / message | What it demonstrates |
 |---|---|---|
-| Pause / resume / reset generator | `POST /api/v1/debug/generator/{pause,resume,reset}` (add `?symbol=` to pick a market; the configured default is used otherwise) | frozen market, epoch change and client resynchronisation |
+| Pause / resume / reset generator | `POST /api/v1/debug/generator/{pause,resume,reset}` (add `?symbol=` to pick a market; the configured default is used otherwise) | frozen market, epoch change and client resynchronisation. **`reset` clears candles, summary and the trade tape without re-running warmup**, so the longer intervals stay thin until the service is restarted; use it last, or restart afterwards |
 | Volatility burst | `POST /api/v1/debug/generator/burst?seconds=5` | the chart under a fast market |
 | Empty history | `POST /api/v1/debug/generator/empty-history?on=true` | the app's empty-history state |
 | Force tier | `tier_override` message or `POST /api/v1/debug/sessions/{id}/tier?tier=AUTO\|FULL\|DEGRADED\|MINIMAL` | all three tiers without poor Wi-Fi; `AUTO` hands the decision straight back to the hysteresis machine |
@@ -448,9 +448,10 @@ Available in debug builds through the backend debug endpoints and the in-app deb
 | **Inject missing delta** | `POST /api/v1/debug/sessions/{id}/faults {"skipBookDeltas":3}` | a real sequence gap: the client detects it, snapshots and resumes |
 | Inject duplicate delta | `{"duplicateDelta":true}` | duplicate ranges must be inert |
 | Inject out-of-order delta | `{"reverseDeltas":true}` | an older range must be ignored |
-| Inject malformed frame | `{"malformedFrames":2}` | protocol-anomaly isolation |
+| Inject malformed frame | `{"malformedFrames":1}` | protocol-anomaly isolation |
+| Inject suppressed close | `{"skipCandleClosed":true}` | a suppressed `candle_closed` must force a resync rather than silently losing a closed bucket |
 | Latency / jitter injection | `{"writeDelayMs":150,"writeJitterMs":200}` | tier degradation from real measured health |
-| Slow consumer | `{"holdWritesMs":6000}` | write-deadline handling and forced recovery |
+| Slow consumer | `{"holdWritesMs":4000}` | write-deadline handling and forced recovery |
 | List live sessions | `GET /api/v1/debug/sessions` | tier, override, RTT, jitter, message counts |
 
 Faults are injected through the same code paths the app uses, and every injection is recorded in `fault_injections` with a correlation id, so "why did the client resync at 12:41:07" is answerable from the database.
@@ -504,7 +505,7 @@ The same tests pin the invariants that are easiest to get wrong: the generator's
 
 **Backend (Go 1.27):** `chi` (router), `gorilla/websocket` (transport), `modernc.org/sqlite` (pure-Go metrics store), `testify` (assertions), `log/slog` (JSON logging, stdlib). Everything else is the standard library. No ORM, no DI framework, no decimal library — the fixed-point type is 150 lines and has no allocation on the hot path.
 
-**Frontend (Flutter):** `flutter_bloc` + `equatable` (state), `dio` (REST), `web_socket_channel` (WS), `internet_connection_checker_plus` + `rxdart` (reachability), `go_router` (routing and deep links), `shared_preferences` + `path_provider_android` (persistence and cache), `fl_chart` (candlestick rendering only), `intl`, `collection`, `json_annotation` + `json_serializable` + `build_runner` (wire DTOs), `mocktail` + `bloc_test` (tests).
+**Frontend (Flutter):** `flutter_bloc` + `equatable` (state), `dio` (REST), `web_socket_channel` (WS), `internet_connection_checker_plus` + `rxdart` (reachability), `go_router` (routing and deep links), `shared_preferences` + `path_provider_android` (persistence and cache), `fl_chart` (candlestick rendering only), `intl`, `collection`, `json_annotation` + `json_serializable` + `build_runner` (wire DTOs), `mocktail` + `bloc_test` (tests), and `flutter_launcher_icons` (generates the launcher icon from `assets/logo.png`; the generated mipmaps are committed, so the tool is only needed to regenerate them).
 
 `path_provider_android` is the Android implementation rather than the umbrella plugin: the umbrella also pulls in the
 Apple implementation, whose transitive `objective_c` build hook requires a licensed Xcode at test time. This
@@ -580,7 +581,8 @@ doc comment at that seam states the reason.
 13. **Offline data can be arbitrarily old.** The app shows the last known values with their true age and does not interpolate, estimate or fabricate movement.
 14. **iOS is not built.** The core, domain, data and presentation layers are platform-agnostic and only the `android/` platform folder is configured; an iOS build needs its own platform folder and cache directory implementation behind `core/cache/cache_directory.dart`.
 15. **No CI/CD by design.** Nothing is built, tested or deployed by a pipeline, and the repository ships no workflow at all: quality is enforced by the local commands above and by the mandatory test list. Keeping an optional deployed instance awake is a manual step (`make ping`) or an external uptime monitor — see [Deployment](#deployment-optional).
-16. **The HTTP surface has no per-IP rate limit and no gzip.** The WebSocket path is limited (message rate, frame size, read limit), while the REST surface has neither a rate limiter nor compression, so no `429 RATE_LIMITED` is produced. Acceptable for a locally-run single-client backend on a trusted LAN; a public deployment needs both added at the transport seam.
+16. **Order-book recovery after a missed range is incomplete.** The gap is detected and a fresh snapshot is requested, installed and logged (`book_gap_detected` → `book_recovery_started` → `book_recovery_completed`), but a level that the missed range would have removed can survive on one side, which leaves the best ask below the best bid — a price relationship a real book cannot have. The screen is wrong until it reloads. Duplicate ranges and malformed frames are handled correctly, and the same defect is not present on subscribe, reconnect or epoch change.
+17. **The HTTP surface has no per-IP rate limit and no gzip.** The WebSocket path is limited (message rate, frame size, read limit), while the REST surface has neither a rate limiter nor compression, so no `429 RATE_LIMITED` is produced. Acceptable for a locally-run single-client backend on a trusted LAN; a public deployment needs both added at the transport seam.
 
 ---
 
