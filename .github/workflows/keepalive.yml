@@ -4,13 +4,16 @@
 # request every 5 minutes keeps it warm. That is the only job this workflow has:
 # it does not build or test anything, and the build and test commands stay local.
 #
-# Set the URL once, as a repository variable (Settings > Secrets and variables >
-# Actions > Variables > New repository variable):
+# It defaults to the deployed instance, so the schedule works with no setup. Set the
+# repository variable (Settings > Secrets and variables > Actions > Variables > New
+# repository variable) to point it somewhere else:
 #
-#   PULSETRADE_URL = https://pulse-trade-backend.onrender.com
+#   PULSETRADE_URL = https://example.com
 #
-# Until that variable exists the job does nothing and exits successfully, so this
-# can be merged before the service is deployed.
+# The default matters for more than latency: Android fetches the app-link
+# verification file when the APK is installed, and a sleeping instance can time out
+# that fetch, which leaves the domain unverified and sends every https link to the
+# browser instead of the app.
 name: keep-alive
 
 on:
@@ -29,10 +32,10 @@ jobs:
     steps:
       - name: Ping /health
         env:
-          BASE_URL: ${{ vars.PULSETRADE_URL }}
+          BASE_URL: ${{ vars.PULSETRADE_URL || 'https://pulse-trade-backend.onrender.com' }}
         run: |
           if [ -z "$BASE_URL" ]; then
-            echo "PULSETRADE_URL is not set yet; nothing to ping."
+            echo "No URL to ping."
             exit 0
           fi
           # A sleeping free instance needs time to boot, so the timeout is generous.
