@@ -240,6 +240,7 @@ class _DebugConsoleBodyState extends State<_DebugConsoleBody> {
               label: override == state.tierOverride
                   ? '${override.wire} · active'
                   : override.wire,
+              selected: override == state.tierOverride,
               busy: state.isBusy,
               onPressed: () => cubit.forceTier(override),
               description: override.isActive

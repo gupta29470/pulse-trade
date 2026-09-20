@@ -23,6 +23,7 @@ class DebugActionButton extends StatelessWidget {
     required this.onPressed,
     this.busy = false,
     this.destructive = false,
+    this.selected = false,
     this.description,
   });
 
@@ -38,6 +39,14 @@ class DebugActionButton extends StatelessWidget {
   /// Whether the action intentionally breaks something.
   final bool destructive;
 
+  /// Whether this control is the active choice among its siblings — the tier the
+  /// session is pinned to.
+  ///
+  /// Shown as a filled accent surface *and* the label's own `· active` suffix: the
+  /// widget's rule is that colour never carries meaning alone, and this is the one
+  /// place on the screen where "which one is in force" is the question being asked.
+  final bool selected;
+
   /// Optional tooltip explaining what the action should cause.
   final String? description;
 
@@ -45,14 +54,20 @@ class DebugActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color foreground = destructive
         ? AppColors.bear
-        : AppColors.textPrimary;
+        : (selected ? AppColors.bull : AppColors.textPrimary);
     final Widget button = OutlinedButton(
       onPressed: busy ? null : onPressed,
       style: OutlinedButton.styleFrom(
         foregroundColor: foreground,
         side: BorderSide(
-          color: destructive ? AppColors.bear : AppColors.outlineFocus,
+          color: selected
+              ? AppColors.bull
+              : (destructive ? AppColors.bear : AppColors.outlineFocus),
+          width: selected ? 1.5 : 1,
         ),
+        backgroundColor: selected
+            ? AppColors.bull.withValues(alpha: 0.14)
+            : Colors.transparent,
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.spaceSm,
           vertical: AppSpacing.spaceXs,

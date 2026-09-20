@@ -121,7 +121,10 @@ abstract final class AppTheme {
         surfaceTintColor: AppColors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: false,
+        // Centred: every screen with an app bar is a full-screen route reached from
+        // a back arrow, so a centred title reads as that screen's name rather than as
+        // something hanging off the arrow.
+        centerTitle: true,
         // Colour is applied here, not in AppTypography: the token is the scale
         // and the theme is where a scale becomes a rendered colour. An explicit
         // colour is required because the app bar does not tint a caller-supplied
