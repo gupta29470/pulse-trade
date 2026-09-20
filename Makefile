@@ -73,6 +73,18 @@ frontend-analyze: ## Format-check and analyze the frontend
 frontend-build: ## Build a debug APK
 	cd $(FRONTEND) && flutter build apk --debug
 
+# --- Deployment -------------------------------------------------------------
+
+# The hosted instance the app ships pointing at. A free host sleeps when it is idle,
+# and the next request pays the boot, so this is the address to keep warm before a
+# demo. Override it to ping something else:
+#   make ping DEPLOYED_URL=http://localhost:8080
+DEPLOYED_URL ?= https://pulse-trade-backend.onrender.com
+
+.PHONY: ping
+ping: ## Ping the deployed instance so a sleeping host wakes up
+	@curl -s -o /dev/null -m 90 -w 'GET $(DEPLOYED_URL)/health -> %{http_code} in %{time_total}s\n' $(DEPLOYED_URL)/health
+
 # --- Combined --------------------------------------------------------------
 
 .PHONY: test

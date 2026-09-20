@@ -76,7 +76,7 @@ flutter run --dart-define=PULSETRADE_GATEWAY=http://10.0.2.2:8080
 
 **A build with no `--dart-define` connects to the deployed backend**, so a fresh install works with no configuration. To run against a backend on your own machine, pass the address that reaches that machine: `http://10.0.2.2:8080` for an **emulator**, or the machine's LAN address for a **physical device**. To tunnel over USB instead, `adb reverse tcp:8080 tcp:8080` and use `http://localhost:8080` (re-run it after each reconnect — the rule is tied to the adb transport). `10.0.2.2` is the emulator's alias for the host loopback interface. Cleartext HTTP/WS is a **local development transport**; the hosted instance is HTTPS/WSS.
 
-`make help` lists every convenience target. Nothing is built or tested by a pipeline — the only workflow in the repository pings a deployed instance to keep it awake, which [Deployment](#deployment-optional) explains.
+`make help` lists every convenience target. Nothing is built or tested by a pipeline — there is no CI/CD, and every command in this README runs on your machine. Keeping the optional deployed instance awake is a manual step too: `make ping`, which [Deployment](#deployment-optional) explains.
 
 ---
 
@@ -521,7 +521,6 @@ code change (`core/cache/cache_directory.dart` is the only boundary that touches
 pulse_trade/
 ├── README.md                     this file
 ├── Makefile                      convenience targets (not a pipeline)
-├── .github/workflows/            the keep-alive ping for a free instance
 ├── pulse_trade_backend/          Go backend
 ├── pulse_trade_frontend/         Flutter app
 └── fixtures/                     the replay tape for deterministic demos
@@ -537,7 +536,8 @@ A hosted service needs three settings: the backend's directory within this monor
 
 Two properties of a free instance are worth knowing before relying on one:
 
-- **It sleeps** after roughly fifteen minutes without inbound traffic, and the next request pays the boot. `.github/workflows/keepalive.yml` pings `/health` every five minutes to prevent that; it stays inert until the repository variable `PULSETRADE_URL` names the service. Treat it as a fallback for an external uptime monitor rather than a substitute: a scheduled workflow can be delayed under load, and GitHub disables one after sixty days without repository activity. While the app is connected it keeps the service awake by itself, because its heartbeat and watchlist polling are inbound traffic.
+- **It sleeps** after roughly fifteen minutes without inbound traffic, and the next request pays the boot. Ping it before a demo — `make ping` calls `/health` and prints the status and the round trip — or point a free uptime monitor at `https://pulse-trade-backend.onrender.com/health` on a five-minute interval, which is the reliable option. This repository deliberately ships no scheduled workflow for it: a cron-driven job is delayed under load and stops being scheduled altogether after a period of inactivity, so an external monitor is the tool for the job. While the app is connected it keeps the service awake by itself, because its heartbeat and watchlist polling are inbound traffic.
+- **Install the APK while it is warm.** Android fetches the app-link verification file at install time, and a sleeping instance can time out that fetch — which leaves the host unverified and sends every `https` link to the browser instead of the app. If that happens, wake the service and re-run verification: `adb shell pm verify-app-links --re-verify com.pulsetrade.pulse_trade_frontend`.
 - **It warms up fully.** Warmup is budgeted at ten seconds for six markets, and the deployed free instance stays inside it: the service serves the full documented history (500 candles at `1m` and `1h`, ~180 at `4h`, ~31 at `1D`). On a smaller instance `WARMUP_MAX_EVENTS` trades history depth for warmup time.
 
 The address is compiled in, and the default is the deployed service, so a plain build targets it:
@@ -573,7 +573,7 @@ doc comment at that seam states the reason.
 12. **Cache is unencrypted and evictable.** It holds only public market data and UI preferences; the 8 MB cap means older interval history can be evicted and refetched.
 13. **Offline data can be arbitrarily old.** The app shows the last known values with their true age and does not interpolate, estimate or fabricate movement.
 14. **iOS is not built.** The core, domain, data and presentation layers are platform-agnostic and only the `android/` platform folder is configured; an iOS build needs its own platform folder and cache directory implementation behind `core/cache/cache_directory.dart`.
-15. **No CI/CD by design.** Nothing is built, tested or deployed by a pipeline: quality is enforced by the local commands above and by the mandatory test list. The one scheduled workflow exists only to keep an optional deployed instance awake — see [Deployment](#deployment-optional).
+15. **No CI/CD by design.** Nothing is built, tested or deployed by a pipeline, and the repository ships no workflow at all: quality is enforced by the local commands above and by the mandatory test list. Keeping an optional deployed instance awake is a manual step (`make ping`) or an external uptime monitor — see [Deployment](#deployment-optional).
 16. **The HTTP surface has no per-IP rate limit and no gzip.** The WebSocket path is limited (message rate, frame size, read limit), while the REST surface has neither a rate limiter nor compression, so no `429 RATE_LIMITED` is produced. Acceptable for a locally-run single-client backend on a trusted LAN; a public deployment needs both added at the transport seam.
 
 ---
