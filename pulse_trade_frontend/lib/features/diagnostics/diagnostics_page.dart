@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_trade_frontend/app/build_flags.dart';
 import 'package:pulse_trade_frontend/app/theme/app_colors.dart';
 import 'package:pulse_trade_frontend/app/theme/app_spacing.dart';
 import 'package:pulse_trade_frontend/app/widgets/inline_notice.dart';
@@ -137,12 +137,12 @@ class _DiagnosticsBody extends StatelessWidget {
         const SizedBox(height: AppSpacing.spaceMd),
         // Debug builds only: the console does not exist in release, so neither
         // does its entry point.
-        if (kDebugMode)
+        if (debugConsoleEnabled)
           OutlinedButton(
             onPressed: () => context.go(DiagnosticsPage.debugRoute),
             child: const Text('Open Debug & Fault Injection Console'),
           ),
-        if (kDebugMode) const SizedBox(height: AppSpacing.spaceXs),
+        if (debugConsoleEnabled) const SizedBox(height: AppSpacing.spaceXs),
         FilledButton(
           onPressed: () {
             // Not awaited: the clipboard write has no continuation, and a failure

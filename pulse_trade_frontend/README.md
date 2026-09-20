@@ -57,8 +57,11 @@ set of numbers.
 - Wire DTOs are generated from `data/dto/*.dart`. After changing one, run
   `dart run build_runner build --delete-conflicting-outputs`.
 - The bottom bar has two destinations, Market and Watchlist. Diagnostics and the
-  debug console are full-screen routes; the debug console is compiled out of
-  release builds.
+  debug console are full-screen routes. The console is a build flag
+  (`lib/app/build_flags.dart`): debug builds have it, and a release build keeps it
+  with `--dart-define=PULSETRADE_DEBUG_CONSOLE=true`, so the APK that demonstrates a
+  forced tier change can be a release build. Its entry points follow the same flag —
+  long-pressing the tier chip on the market screen, and the button on Diagnostics.
 - Deep links are routed by the app itself, in two shapes that mean the same thing:
   `pulsetrade://market/BTCUSDT` (the custom scheme, which `adb` and a browser
   dispatch) and `https://pulse-trade-backend.onrender.com/market/BTCUSDT` (the app

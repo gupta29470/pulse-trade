@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_trade_frontend/app/build_flags.dart';
 import 'package:pulse_trade_frontend/app/routing/app_router.dart';
 import 'package:pulse_trade_frontend/app/theme/app_colors.dart';
 import 'package:pulse_trade_frontend/app/theme/app_radii.dart';
@@ -413,7 +413,9 @@ class _TierChipSlot extends StatelessWidget {
           // The debug console holds the documented forced-tier control.
           // Long-pressing the tier chip keeps that control next to the thing it
           // changes, and only in builds that register the route.
-          onLongPress: kDebugMode ? () => context.push(AppPaths.debug) : null,
+          onLongPress: debugConsoleEnabled
+              ? () => context.push(AppPaths.debug)
+              : null,
           child: chip,
         );
       },

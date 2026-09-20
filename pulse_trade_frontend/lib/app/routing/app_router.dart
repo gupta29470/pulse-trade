@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pulse_trade_frontend/app/build_flags.dart';
 import 'package:pulse_trade_frontend/app/theme/app_colors.dart';
 import 'package:pulse_trade_frontend/app/theme/app_typography.dart';
 import 'package:pulse_trade_frontend/app/widgets/app_shell.dart';
@@ -62,11 +63,13 @@ final class AppRouter {
   AppRouter._({required this.debugControlsEnabled})
     : router = _build(debugControlsEnabled: debugControlsEnabled);
 
-  /// Builds the router. [debugControlsEnabled] must already account for
-  /// `kReleaseMode`: in release builds the debug console and the long-press
-  /// route that opens it are compiled out.
-  factory AppRouter.create({bool? debugControlsEnabled}) =>
-      AppRouter._(debugControlsEnabled: debugControlsEnabled ?? kDebugMode);
+  /// Builds the router. [debugControlsEnabled] defaults to the build flag, so a
+  /// caller that does not care gets the documented behaviour: the console exists in
+  /// debug builds, and in a release build that opted in with
+  /// `--dart-define=PULSETRADE_DEBUG_CONSOLE=true`.
+  factory AppRouter.create({bool? debugControlsEnabled}) => AppRouter._(
+    debugControlsEnabled: debugControlsEnabled ?? debugConsoleEnabled,
+  );
 
   /// The custom deep-link scheme the Android manifest is expected to register.
   static const String deepLinkScheme = 'pulsetrade';

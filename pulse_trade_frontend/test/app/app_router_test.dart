@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pulse_trade_frontend/app/build_flags.dart';
 import 'package:pulse_trade_frontend/app/routing/app_router.dart';
 
 /// Renders the real router.
@@ -18,6 +19,22 @@ void main() {
       app.router.routeInformationProvider.value.uri.toString(),
       contains('/market/'),
     );
+  });
+
+  test('the console follows the build flag, not the test\'s debug mode', () {
+    // Tests always compile in debug mode, so this is the one place the flag's
+    // precedence can be observed rather than assumed: with
+    // `--dart-define=PULSETRADE_DEBUG_CONSOLE=false` the console must be absent even
+    // though `kDebugMode` is true. Run without the define, the first branch is
+    // skipped and the default is asserted instead.
+    if (const bool.hasEnvironment('PULSETRADE_DEBUG_CONSOLE')) {
+      expect(
+        debugConsoleEnabled,
+        const bool.fromEnvironment('PULSETRADE_DEBUG_CONSOLE'),
+        reason: 'an explicit define must win over the debug default',
+      );
+    }
+    expect(AppRouter.create().debugControlsEnabled, debugConsoleEnabled);
   });
 
   test('both tabs are reachable and share one shell', () {

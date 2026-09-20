@@ -436,7 +436,7 @@ Everything the reviewer needs is in one place and is populated entirely from rea
 
 ## Debug controls
 
-Available in debug builds through the backend debug endpoints and the in-app debug console, which is reached by long-pressing the tier chip on the market screen and is compiled out of release builds (`kDebugMode`).
+Available in debug builds through the backend debug endpoints and the in-app debug console, which is reached by long-pressing the tier chip on the market screen. A release build leaves it out unless it is built with `--dart-define=PULSETRADE_DEBUG_CONSOLE=true`, which is the flag to use when the APK being demonstrated has to be a release build.
 
 | Control | Endpoint / message | What it demonstrates |
 |---|---|---|
@@ -546,7 +546,13 @@ The address is compiled in, and the default is the deployed service, so a plain 
 flutter build apk --debug
 ```
 
-Point a build at a backend on your own machine instead with `--dart-define=PULSETRADE_GATEWAY=http://<host>:8080`. Keep it a **debug** build: a release build compiles out the debug console, and that console is how a forced tier change is demonstrated. `https` is upgraded to `wss` automatically, so the deployment needs no client change beyond the address.
+Point a build at a backend on your own machine instead with `--dart-define=PULSETRADE_GATEWAY=http://<host>:8080`. `https` is upgraded to `wss` automatically, so the deployment needs no client change beyond the address.
+
+The long-press that opens the debug console — and with it the forced tier change — exists in debug builds. A release build keeps it when built with the flag, which is how the APK attached to a submission can be a release build and still demonstrate all three tiers:
+
+```bash
+flutter build apk --release --dart-define=PULSETRADE_DEBUG_CONSOLE=true
+```
 
 The host also answers Android's app-link verification file, so `https://pulse-trade-backend.onrender.com/market/BTCUSDT` opens the app when it is tapped in a chat client — which a `pulsetrade://` link cannot do, because clients do not dispatch an unknown scheme. That only holds for a build whose signing certificate is listed in `internal/transport/http/applinks.go`: a release build signed with a different key has to add its SHA-256 there, or the link stays in the browser.
 
